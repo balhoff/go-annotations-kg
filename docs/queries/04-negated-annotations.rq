@@ -1,13 +1,14 @@
-# NOT annotations: what curators say a gene product does not do.
-# These triples are not asserted; only goann:negates reaches them.
+# NOT annotations of human gene products: what curators say a gene product does
+# not do. Each reifies its triple without asserting it; its type marks it.
+# << s p o ~ r >> is SPARQL 1.2's reified-triple shorthand for r rdf:reifies <<( s p o )>>.
 PREFIX obo: <http://purl.obolibrary.org/obo/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
 
 SELECT ?gp ?relation ?term ?code ?reference WHERE {
-  ?annotation goann:negates <<( ?gp ?relation ?term )>> ;
-              goann:evidenceCode ?code ;
-              dcterms:source ?reference .
+  << ?gp ?relation ?term ~ ?annotation >> a goann:NegatedAnnotation ;
+      goann:evidenceCode ?code ;
+      dcterms:source ?reference .
   ?gp obo:RO_0002162 obo:NCBITaxon_9606 .
 }
 LIMIT 100

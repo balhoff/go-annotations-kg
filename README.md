@@ -7,9 +7,10 @@ in the OKN.
 The input is GO's per-species GPAD 2.0 and GPI 2.0 files, the `*-uniprot` pairs only.
 The `*-mod` files repeat the same annotations keyed to MOD gene ids. Each gene
 product → GO term relation is a plain triple, asserted once. Each GPAD line becomes a
-reifier of that triple, carrying the line's evidence, reference, with/from, date,
-assigner, extensions and properties. `NOT` lines point at their triple with
-`goann:negates` and never assert it. [`docs/model.md`](docs/model.md) has the
+reifier (`rdf:reifies`) of that triple, carrying the line's evidence, reference,
+with/from, date, assigner, extensions and properties. `NOT` lines are reifiers typed
+`goann:NegatedAnnotation` and never assert their triple. Positive lines are typed
+`goann:Annotation`. [`docs/model.md`](docs/model.md) has the
 model and the reasons for it, and [`docs/queries/`](docs/queries/) has SPARQL 1.2
 examples.
 

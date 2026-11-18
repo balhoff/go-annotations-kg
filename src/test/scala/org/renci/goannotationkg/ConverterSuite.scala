@@ -84,20 +84,33 @@ class ConverterSuite extends FunSuite:
     reifiers.foreach(r => assert(g.contains(r, rdf.`type`, goann.Annotation)))
     assertEquals(reifiers.flatMap(objects(g, _, Vocab.Dcterms.source)), Set(iri("PMID:1"), iri("PMID:2")))
 
-  test("NOT annotations negate their triple without asserting or reifying it"):
+  test("NOT annotations reify their triple, typed as negated"):
     val g = run().graph
     val (p1, involved, apoptosis) = (iri("UniProtKB:P1"), iri("RO:0002331"), iri("GO:0006915"))
-    val negating = subjects(g, goann.negates, tt(p1, involved, apoptosis))
-    assertEquals(negating.size, 1)
-    assert(g.contains(negating.head, rdf.`type`, goann.NegatedAnnotation))
-    assertEquals(objects(g, negating.head, goann.evidenceCode), Set(lit("IMP")))
-    // The same triple is asserted only because a positive IBA line also states it.
+    val reifiers = subjects(g, rdf.reifies, tt(p1, involved, apoptosis))
+    assertEquals(reifiers.size, 2) // the NOT line and a positive IBA line
+    val negated = reifiers.filter(r => g.contains(r, rdf.`type`, goann.NegatedAnnotation))
+    assertEquals(negated.size, 1)
+    assertEquals(objects(g, negated.head, goann.evidenceCode), Set(lit("IMP")))
+    // The triple is asserted only because the positive IBA line also states it.
     assert(g.contains(p1, involved, apoptosis))
-    assertEquals(subjects(g, rdf.reifies, tt(p1, involved, apoptosis)).size, 1)
 
-  test("a NOT-only triple is never asserted"):
+  test("a NOT-only triple is reified but never asserted"):
     val g = run(gpad.linesIterator.filterNot(l => l.contains("GO_Central")).mkString("", "\n", "\n")).graph
-    assert(!g.contains(iri("UniProtKB:P1"), iri("RO:0002331"), iri("GO:0006915")))
+    val (p1, involved, apoptosis) = (iri("UniProtKB:P1"), iri("RO:0002331"), iri("GO:0006915"))
+    assert(!g.contains(p1, involved, apoptosis))
+    val reifiers = subjects(g, rdf.reifies, tt(p1, involved, apoptosis))
+    assertEquals(reifiers.size, 1)
+    assert(g.contains(reifiers.head, rdf.`type`, goann.NegatedAnnotation))
+
+  test("every reifier has exactly one of the two annotation types"):
+    val g = run().graph
+    val reifiers = g.find(Node.ANY, rdf.reifies, Node.ANY).asScala.map(_.getSubject).toSet
+    assertEquals(reifiers.size, 6) // every converted GPAD line
+    reifiers.foreach { r =>
+      val kinds = objects(g, r, rdf.`type`).intersect(Set(goann.Annotation, goann.NegatedAnnotation))
+      assertEquals(kinds.size, 1, r.toString)
+    }
 
   test("writes evidence, reference, date, assigner and properties on the annotation"):
     val g = run().graph

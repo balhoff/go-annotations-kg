@@ -28,8 +28,9 @@ graph, as cross-references from the GPI (`goann:xref`).
 
 ## The shape
 
-Each GPAD line becomes an **annotation node** that reifies the triple it supports.
-The triple itself is asserted once, however many lines support it. In Turtle 1.2,
+Each GPAD line becomes an **annotation node** that reifies the triple it is about:
+the triple it supports, or for a `NOT` line the triple it denies. The triple itself is
+asserted once, however many positive lines support it. In Turtle 1.2,
 for two real lines from `HUMAN-uniprot.gpad.gz`:
 
 ```turtle
@@ -68,13 +69,14 @@ properties inside it. That is exactly what the converter writes, in N-Triples 1.
 
 ### NOT annotations
 
-A `NOT` line says its triple is false. It must not be asserted. RDF 1.2 can point at
-a triple without asserting it, so a `NOT` line becomes a node that points at the
-triple term with **`goann:negates`**, not `rdf:reifies`:
+A `NOT` line says its triple is false, so the line must not assert it. Like every
+line, it reifies the triple. Its type, **`goann:NegatedAnnotation`**, says it denies
+the proposition rather than supports it. Turtle 1.2's reified-triple syntax writes
+`rdf:reifies` without asserting the triple:
 
 ```turtle
-[] a goann:NegatedAnnotation ;
-   goann:negates <<( UniProtKB:A0A087X1C5 RO:0002327 GO:0070330 )>> ;
+<< UniProtKB:A0A087X1C5 RO:0002327 GO:0070330 >>    # reified, not asserted
+   a goann:NegatedAnnotation ;
    RO:0002558 ECO:0000314 ;
    goann:evidenceCode "IDA" ;
    dcterms:source <http://www.ncbi.nlm.nih.gov/pubmed/18838503> ;
@@ -82,16 +84,37 @@ triple term with **`goann:negates`**, not `rdf:reifies`:
    goann:assignedBy "UniProt" .
 ```
 
-A separate predicate, rather than `rdf:reifies` plus a flag, means:
+This is how RDF 1.2 intends disputed and false claims to be written:
 
-- `?a rdf:reifies <<( ?gp ?rel ?term )>>` returns positive evidence only, so a query
-  that forgets negation is still right;
-- the class partition counts the two kinds apart (`goann:Annotation`,
-  `goann:NegatedAnnotation`).
+- RDF 1.2 Concepts §1.5 calls the meaning of `rdf:reifies` "deliberately generic".
+  - A reifier may denote "a variety of things that are related to the triple
+    term's proposition".
+  - A reified proposition "does not have to hold", even when it contradicts
+    another statement.
+  - A curator's statement that a proposition is false is one of those things.
+- The RDF 1.2 Primer suggests unasserted triple terms for "disputed claims". It also
+  says triple terms "should be used with the special reifies predicate".
+- Turtle 1.2's and SPARQL 1.2's shorthands, `<< s p o ~ r >>` and `{| … |}`, both
+  expand to `rdf:reifies`. One pattern therefore reaches every annotation of a
+  triple, positive or not.
 
-In release 2026-08-05, 1,214 (gene product, relation, term) triples have both
-positive and `NOT` annotations. Such a triple is asserted (some line supports it),
-and its `goann:negates` node shows the conflict.
+A first draft used a separate predicate, `goann:negates`, so that `rdf:reifies`
+would mean positive evidence only. It was dropped (2026-11-18): the type does the
+same job without leaving the standard idiom.
+
+The flag is the type, not a boolean:
+
+- every reifier has exactly one of the two types, which are declared disjoint;
+- the class partition counts the two kinds apart;
+- with a boolean on `NOT` lines only, "positive" would rest on a value being
+  absent.
+
+**A query for supporting evidence must ask for `?a a goann:Annotation`**, as every
+query in [`queries/`](queries/) does. It matters for triples that have both kinds of
+line. In release 2026-08-05, 1,214 triples have both (1,324 `NOT` lines). Each is
+asserted, because a positive line states it, so `?gp ?rel ?term {| … |}` on it
+returns both kinds. The other 7,521 `NOT`-annotated triples are never asserted, so
+that pattern cannot reach them; `<< ?gp ?rel ?term ~ ?a >>` can.
 
 ### Annotation extensions
 
@@ -152,7 +175,7 @@ which gives `goann:canonicalObject` and the parent's taxon.
 | Column | Becomes |
 |---|---|
 | 1 DB_Object_ID | subject of the triple (term) |
-| 2 Negation | `goann:Annotation` + `rdf:reifies` + asserted triple, or `goann:NegatedAnnotation` + `goann:negates` |
+| 2 Negation | the node's type: `goann:Annotation`, and the triple is asserted; or `goann:NegatedAnnotation`, and this line does not assert it. Both `rdf:reifies` the triple |
 | 3 Relation | predicate of the triple (term) |
 | 4 Ontology_Class_ID | object of the triple (term) |
 | 5 Reference | `dcterms:source` |
@@ -246,7 +269,7 @@ From `make convert-all` and `make report` over all 172 `*-uniprot` pairs. Run wi
 | positive annotations (`goann:Annotation`) | 15,445,702 |
 | NOT annotations (`goann:NegatedAnnotation`) | 9,263 |
 | asserted gene product → GO term triples | 11,197,555 |
-| triples with only NOT annotations, so never asserted | 8,735 |
+| triples with only NOT annotations, so never asserted | 7,521 |
 | gene products described from the GPI | 1,808,506 |
 | annotated objects missing from the GPI | 107,523 |
 | extension conjunctions | 170,961 |
@@ -266,11 +289,15 @@ counts what was dropped below the line level:
 A KGF bundle of HUMAN alone has 9.84M triples and takes 151 MiB. It builds with
 `kgf` 0.6.0 and `hdtc` 1.3.2 in 22 seconds. In it:
 
-- the 1,497 NOT propositions sit in `data.hdt.props.hdt`, the side file for
-  unasserted triple terms;
-- `?a rdf:reifies <<( UniProtKB:P04637 ?p ?o )>>` counts 1,049, which is TP53's
-  positive GPAD lines;
-- `goann:negates <<( ?s RO:0002327 ?o )>>` counts 618.
+- HUMAN's 1,497 NOT lines state 1,403 distinct triples. The 1,185 of them that no
+  positive line asserts sit in `data.hdt.props.hdt`, the side file for unasserted
+  triple terms; the other 218 are asserted, so they decode from `data.hdt`;
+- `rdf:reifies` counts 919,991, every HUMAN GPAD line. Of those reifiers, 918,494
+  are typed `goann:Annotation` and 1,497 `goann:NegatedAnnotation`;
+- `?a rdf:reifies <<( ?s RO:0002327 ?o )>>` counts 422,894, every HUMAN *enables*
+  line, 618 of them `NOT`;
+- `?a rdf:reifies <<( UniProtKB:P04637 ?p ?o )>>` counts 1,049, TP53's GPAD lines
+  (it has no `NOT` lines).
 
 All of these match the source rows. Scaled up, the whole release should make a
 bundle of about 3 GB.

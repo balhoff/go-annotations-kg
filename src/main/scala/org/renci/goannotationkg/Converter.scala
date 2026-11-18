@@ -15,9 +15,10 @@ final case class Source(stream: InputStream, iri: Option[String])
 /** Converts one species' GPAD file, and optionally its GPI file, to RDF 1.2.
   *
   * Each GPAD line becomes one annotation node (a blank node) that reifies the
-  * gene product → GO term triple. Positive annotations also assert that triple;
-  * NOT annotations only point at it with goann:negates. Gene products that the
-  * GPAD annotates are described from the GPI. See docs/model.md.
+  * gene product → GO term triple. Positive annotations (goann:Annotation) also
+  * assert that triple; NOT annotations (goann:NegatedAnnotation) only reify it.
+  * Gene products that the GPAD annotates are described from the GPI. See
+  * docs/model.md.
   */
 final class Converter(prefixes: PrefixTable, out: StreamRDF, val stats: Stats):
   private val speciesCode = "[A-Za-z0-9]+".r
@@ -68,9 +69,9 @@ final class Converter(prefixes: PrefixTable, out: StreamRDF, val stats: Stats):
       case (Some(subject), Some(relation), Some(term)) =>
         val proposition = NodeFactory.createTripleTerm(subject, relation, term)
         val node = blank(s"${species}a${a.line}")
+        // Both kinds reify the triple; the type says which. Only a positive line asserts it.
         if a.negated then
           emit(node, Rdf.`type`, GoAnn.NegatedAnnotation)
-          emit(node, GoAnn.negates, proposition)
           stats.add("annotations.negated")
         else
           if a.objectId != assertedSubject then
@@ -80,8 +81,8 @@ final class Converter(prefixes: PrefixTable, out: StreamRDF, val stats: Stats):
             emit(subject, relation, term)
             stats.add("asserted-triples")
           emit(node, Rdf.`type`, GoAnn.Annotation)
-          emit(node, Rdf.reifies, proposition)
           stats.add("annotations.positive")
+        emit(node, Rdf.reifies, proposition)
 
         iri(a.evidence, "evidence").foreach(emit(node, Ro.hasEvidence, _))
         iri(a.reference, "reference").foreach(emit(node, Dcterms.source, _))

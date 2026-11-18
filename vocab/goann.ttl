@@ -18,11 +18,11 @@
 
 goann:Annotation a owl:Class ;
     rdfs:label "GO annotation" ;
-    rdfs:comment "One positive line of a GPAD file. It reifies (rdf:reifies) the asserted triple <gene product> <relation> <GO term>, and carries the line's evidence, reference, with/from, date, assigner, extensions and properties." .
+    rdfs:comment "One positive line of a GPAD file: a statement that the proposition it reifies (rdf:reifies <<( <gene product> <relation> <GO term> )>>) holds. That triple is asserted in the graph. The node carries the line's evidence, reference, with/from, date, assigner, extensions and properties." .
 
 goann:NegatedAnnotation a owl:Class ;
     rdfs:label "negated GO annotation" ;
-    rdfs:comment "One GPAD line with the NOT qualifier. It points with goann:negates at the triple term <<( <gene product> <relation> <GO term> )>>, which this line does not assert. Disjoint from goann:Annotation." ;
+    rdfs:comment "One GPAD line with the NOT qualifier: a statement that the proposition it reifies does not hold. It never causes its triple to be asserted; the triple is asserted only if a positive line also states it. Every reifier in the graph has exactly one of the types goann:Annotation and goann:NegatedAnnotation, so a query for supporting evidence should ask for goann:Annotation." ;
     owl:disjointWith goann:Annotation .
 
 goann:SourceFile a owl:Class ;
@@ -30,11 +30,6 @@ goann:SourceFile a owl:Class ;
     rdfs:comment "A published GPAD or GPI file a bundle was built from, with its header properties." .
 
 # ---- annotation properties ---------------------------------------------------
-
-goann:negates a owl:ObjectProperty ;
-    rdfs:label "negates" ;
-    rdfs:comment "Relates a negated annotation to the triple term it states is false. Used instead of rdf:reifies so that every rdf:reifies in this graph is positive evidence." ;
-    rdfs:domain goann:NegatedAnnotation .
 
 goann:evidenceCode a owl:DatatypeProperty ;
     rdfs:label "GO evidence code" ;

@@ -1,10 +1,16 @@
-# Triples with both positive and NOT annotations.
+# Triples with both positive and NOT annotations. Every positive line asserts
+# its triple, so these triples are asserted. Joining the two kinds of reifier on
+# the whole triple term, starting from the few NOT annotations, keeps it cheap.
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
 
 SELECT ?gp ?relation ?term (COUNT(DISTINCT ?positive) AS ?for) (COUNT(DISTINCT ?negative) AS ?against) WHERE {
-  ?negative goann:negates <<( ?gp ?relation ?term )>> .
-  ?gp ?relation ?term .
-  ?positive rdf:reifies <<( ?gp ?relation ?term )>> .
+  ?negative a goann:NegatedAnnotation ;
+            rdf:reifies ?proposition .
+  ?positive rdf:reifies ?proposition ;
+            a goann:Annotation .
+  BIND(SUBJECT(?proposition) AS ?gp)
+  BIND(PREDICATE(?proposition) AS ?relation)
+  BIND(OBJECT(?proposition) AS ?term)
 }
 GROUP BY ?gp ?relation ?term

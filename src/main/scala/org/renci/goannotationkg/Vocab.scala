@@ -48,7 +48,6 @@ object Vocab:
     val Annotation: Node = goann("Annotation")
     val NegatedAnnotation: Node = goann("NegatedAnnotation")
     val SourceFile: Node = goann("SourceFile")
-    val negates: Node = goann("negates")
     val evidenceCode: Node = goann("evidenceCode")
     val withFrom: Node = goann("withFrom")
     val withFromGroup: Node = goann("withFromGroup")
