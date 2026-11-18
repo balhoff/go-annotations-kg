@@ -4,3 +4,4 @@ target/
 data/
 *.part
 .metals/
+.vscode/
