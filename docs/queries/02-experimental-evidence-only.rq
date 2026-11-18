@@ -1,0 +1,15 @@
+# GO annotations of one protein, with evidence, leaving out IEA.
+# SPARQL 1.2: the {| |} block matches the reifiers of the asserted triple.
+PREFIX obo: <http://purl.obolibrary.org/obo/>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+PREFIX UniProtKB: <http://purl.uniprot.org/uniprot/>
+
+SELECT ?relation ?term ?code ?eco ?reference WHERE {
+  UniProtKB:P04637 ?relation ?term {|
+    goann:evidenceCode ?code ;
+    obo:RO_0002558 ?eco ;
+    dcterms:source ?reference
+  |}
+  FILTER(?code != "IEA")
+}

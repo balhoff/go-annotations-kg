@@ -1,0 +1,127 @@
+@prefix goann: <https://w3id.org/go-annotation-kg/vocab/> .
+@prefix obo: <http://purl.obolibrary.org/obo/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Vocabulary of the GO annotation knowledge graph. It is loaded into every
+# bundle, so the graph describes its own terms. docs/model.md explains the model.
+
+<https://w3id.org/go-annotation-kg/vocab/> a owl:Ontology ;
+    rdfs:label "GO annotation KG vocabulary" ;
+    rdfs:comment "Terms for GO annotations converted from GPAD 2.0 and GPI 2.0 with RDF 1.2 triple terms." .
+
+# ---- classes ---------------------------------------------------------------
+
+goann:Annotation a owl:Class ;
+    rdfs:label "GO annotation" ;
+    rdfs:comment "One positive line of a GPAD file. It reifies (rdf:reifies) the asserted triple <gene product> <relation> <GO term>, and carries the line's evidence, reference, with/from, date, assigner, extensions and properties." .
+
+goann:NegatedAnnotation a owl:Class ;
+    rdfs:label "negated GO annotation" ;
+    rdfs:comment "One GPAD line with the NOT qualifier. It points with goann:negates at the triple term <<( <gene product> <relation> <GO term> )>>, which this line does not assert. Disjoint from goann:Annotation." ;
+    owl:disjointWith goann:Annotation .
+
+goann:SourceFile a owl:Class ;
+    rdfs:label "source file" ;
+    rdfs:comment "A published GPAD or GPI file a bundle was built from, with its header properties." .
+
+# ---- annotation properties ---------------------------------------------------
+
+goann:negates a owl:ObjectProperty ;
+    rdfs:label "negates" ;
+    rdfs:comment "Relates a negated annotation to the triple term it states is false. Used instead of rdf:reifies so that every rdf:reifies in this graph is positive evidence." ;
+    rdfs:domain goann:NegatedAnnotation .
+
+goann:evidenceCode a owl:DatatypeProperty ;
+    rdfs:label "GO evidence code" ;
+    rdfs:comment "The three-letter GO evidence code (IEA, IDA, IBA, ...) that the GPAD's comment=go_evidence:XXX property gives. The ECO class is on obo:RO_0002558." ;
+    rdfs:range xsd:string .
+
+goann:withFrom a owl:ObjectProperty ;
+    rdfs:label "with/from" ;
+    rdfs:comment "Every identifier in GPAD column 7. Entries joined with ',' are evidence only together; goann:withFromGroup records those groups." .
+
+goann:withFromGroup a owl:ObjectProperty ;
+    rdfs:label "with/from group" ;
+    rdfs:comment "A ','-joined group from GPAD column 7. Its members (rdfs:member) are evidence together, for example the genes of a double mutant." .
+
+goann:interactingTaxon a owl:ObjectProperty ;
+    rdfs:label "interacting taxon" ;
+    rdfs:comment "GPAD column 8: the taxon of another organism involved in the annotated function or process, such as a host." .
+
+goann:assignedBy a owl:DatatypeProperty ;
+    rdfs:label "assigned by" ;
+    rdfs:comment "GPAD column 10: the database that made the annotation, as GO's group abbreviation (UniProt, MGI, GO_Central, ...)." ;
+    rdfs:range xsd:string .
+
+goann:extension a owl:ObjectProperty ;
+    rdfs:label "annotation extension" ;
+    rdfs:comment "One '|'-separated conjunction from GPAD column 11, as an anonymous class whose rdfs:subClassOf values are owl:someValuesFrom restrictions. Read the annotated class as the GO term intersected with it. Several values are independent: each could be its own annotation." .
+
+goann:gocamModel a owl:ObjectProperty ;
+    rdfs:label "GO-CAM model" ;
+    rdfs:comment "The GO-CAM model this annotation was derived from (GPAD property noctua-model-id)." .
+
+goann:modelState a owl:DatatypeProperty ;
+    rdfs:label "GO-CAM model state" ;
+    rdfs:comment "The state of the GO-CAM model (GPAD property model-state), such as production." .
+
+goann:reviewer a owl:ObjectProperty ;
+    rdfs:label "reviewer" ;
+    rdfs:comment "A curator who last reviewed the annotation (GPAD property reviewer-id)." .
+
+goann:reviewed a owl:DatatypeProperty ;
+    rdfs:label "reviewed" ;
+    rdfs:comment "A date on which the annotation was reviewed (GPAD property reviewed-date)." .
+
+# ---- gene product properties -------------------------------------------------
+
+goann:fullName a owl:DatatypeProperty ;
+    rdfs:label "full name" ;
+    rdfs:comment "GPI column 3, the gene product's name. rdfs:label holds the symbol (GPI column 2), or this name when there is no symbol." .
+
+goann:dbSubset a owl:DatatypeProperty ;
+    rdfs:label "UniProtKB subset" ;
+    rdfs:comment "Swiss-Prot (reviewed) or TrEMBL (unreviewed), from the GPI property db_subset." .
+
+goann:canonicalObject a owl:ObjectProperty ;
+    rdfs:label "canonical object" ;
+    rdfs:comment "GPI column 8 when it differs from the entity: the gene-centric entry an isoform or processed chain belongs to." .
+
+goann:xref a owl:ObjectProperty ;
+    rdfs:label "database cross-reference" ;
+    rdfs:comment "GPI column 10: identifiers of the same gene product, or of its gene, in other databases (HGNC, MGI, Ensembl, RefSeq, ...)." .
+
+# ---- source file properties --------------------------------------------------
+
+goann:formatVersion a owl:DatatypeProperty ;
+    rdfs:label "format version" ;
+    rdfs:comment "The gpad-version or gpi-version header of a source file." .
+
+goann:goVersion a owl:ObjectProperty ;
+    rdfs:label "GO version" ;
+    rdfs:comment "The go-version header of a source file: the GO release its annotations were checked against." .
+
+# ---- reused terms, labelled here so the graph is self-describing --------------
+
+obo:RO_0002327 rdfs:label "enables" .
+obo:RO_0002326 rdfs:label "contributes to" .
+obo:RO_0002331 rdfs:label "involved in" .
+obo:RO_0002263 rdfs:label "acts upstream of" .
+obo:RO_0004034 rdfs:label "acts upstream of positive effect" .
+obo:RO_0004035 rdfs:label "acts upstream of negative effect" .
+obo:RO_0002264 rdfs:label "acts upstream of or within" .
+obo:RO_0004032 rdfs:label "acts upstream of or within positive effect" .
+obo:RO_0004033 rdfs:label "acts upstream of or within negative effect" .
+obo:BFO_0000050 rdfs:label "part of" .
+obo:RO_0001025 rdfs:label "located in" .
+obo:RO_0002432 rdfs:label "is active in" .
+obo:RO_0002325 rdfs:label "colocalizes with" .
+obo:RO_0002558 rdfs:label "has evidence" .
+obo:RO_0002162 rdfs:label "in taxon" .
+obo:RO_0002204 rdfs:label "gene product of" .
+obo:RO_0002180 rdfs:label "has component" .

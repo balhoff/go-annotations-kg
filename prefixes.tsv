@@ -1,0 +1,119 @@
+# Prefix table: how every CURIE in the GPAD and GPI files becomes an IRI.
+#
+# Columns (tab-separated):
+#   prefix  the prefix as it appears in GPAD/GPI (case-sensitive)
+#   target  an IRI base the local part is appended to;
+#           =OTHER to treat the prefix as an alias of OTHER;
+#           - to drop identifiers with this prefix on purpose (counted, not an error)
+#   rules   comma-separated local-part rules, or -:
+#           strip_version  remove a trailing .N version (Ensembl gene versions)
+#   basis   where the target comes from
+#
+# Policy: use the Biolink Model prefix map (commit bec6cc5b, the one babel-rdf
+# uses) wherever it has the prefix, so identifiers join with Babel, ROBOKOP and
+# the other OKN graphs built from it. Otherwise use GO's own IRI where GO owns
+# the identifier space (GO_REF, GO-CAM models), and an identifiers.org IRI in
+# Biolink's style for the remaining long tail.
+#
+# Every local part that repeats its own prefix ("MGI:MGI:97486",
+# "HGNC:HGNC:5") is shortened first ("MGI:97486"), as Biolink and Babel
+# write those CURIEs. UniProtKB isoforms (P12345-2) go to UniProtKB.isoform
+# and processed chains (P12345-PRO_0000012345) to UniProtKB.chain.
+prefix	target	rules	basis
+UniProtKB	http://purl.uniprot.org/uniprot/	-	biolink UniProtKB
+UniProtKB.isoform	http://purl.uniprot.org/isoforms/	-	biolink UNIPROT.ISOFORM
+UniProtKB.chain	http://purl.uniprot.org/annotation/	-	UniProt RDF chain annotation (PRO_ id)
+SPTR	=UniProtKB	-	GO synonym of UniProtKB
+RNAcentral	http://identifiers.org/rnacentral/	-	biolink RNACENTRAL
+ComplexPortal	https://www.ebi.ac.uk/complexportal/complex/	-	biolink ComplexPortal
+GO	http://purl.obolibrary.org/obo/GO_	-	biolink GO
+RO	http://purl.obolibrary.org/obo/RO_	-	biolink RO
+BFO	http://purl.obolibrary.org/obo/BFO_	-	biolink BFO
+GOREL	http://purl.obolibrary.org/obo/GOREL_	-	biolink GOREL
+ECO	http://purl.obolibrary.org/obo/ECO_	-	biolink ECO
+NCBITaxon	http://purl.obolibrary.org/obo/NCBITaxon_	-	biolink NCBITaxon
+SO	http://purl.obolibrary.org/obo/SO_	-	biolink SO
+PR	http://purl.obolibrary.org/obo/PR_	-	biolink PR
+CHEBI	http://purl.obolibrary.org/obo/CHEBI_	-	biolink CHEBI
+ChEBI	=CHEBI	-	case variant
+UBERON	http://purl.obolibrary.org/obo/UBERON_	-	biolink UBERON
+CL	http://purl.obolibrary.org/obo/CL_	-	biolink CL
+EMAPA	http://purl.obolibrary.org/obo/EMAPA_	-	biolink EMAPA
+WBbt	http://purl.obolibrary.org/obo/WBbt_	-	biolink WBbt
+WBls	http://purl.obolibrary.org/obo/WBls_	-	biolink WBls
+FBbt	http://purl.obolibrary.org/obo/FBbt_	-	biolink FBbt
+FBdv	http://purl.obolibrary.org/obo/FBdv_	-	biolink FBdv
+DDANAT	http://purl.obolibrary.org/obo/DDANAT_	-	biolink DDANAT
+PO	http://purl.obolibrary.org/obo/PO_	-	biolink PO
+ZFA	http://purl.obolibrary.org/obo/ZFA_	-	biolink ZFA
+OMIM	http://purl.obolibrary.org/obo/OMIM_	-	biolink OMIM
+MIM	=OMIM	-	GO synonym of OMIM
+GO_REF	http://purl.obolibrary.org/obo/go/references/	-	GO db-xrefs rdf_uri_prefix
+gomodel	http://model.geneontology.org/	-	GO-CAM model IRIs
+PMID	http://www.ncbi.nlm.nih.gov/pubmed/	-	biolink PMID
+DOI	https://doi.org/	-	biolink doi
+Reactome	http://www.reactome.org/PathwayBrowser/#/	-	biolink REACT
+InterPro	https://www.ebi.ac.uk/interpro/entry/	-	biolink interpro
+Pfam	http://identifiers.org/pfam/	-	biolink PFAM
+Rfam	http://identifiers.org/rfam/	-	biolink RFAM
+EC	http://www.enzyme-database.org/query.php?ec=	-	biolink EC
+RHEA	http://identifiers.org/rhea/	-	biolink RHEA
+PubChem_Compound	http://identifiers.org/pubchem.compound/	-	biolink PUBCHEM.COMPOUND
+PubChem_Substance	http://identifiers.org/pubchem.substance/	-	biolink PUBCHEM.SUBSTANCE
+NCBI_Gene	http://identifiers.org/ncbigene/	-	biolink NCBIGene
+HGNC	http://identifiers.org/hgnc/	-	biolink HGNC
+MGI	http://identifiers.org/mgi/	-	biolink MGI
+RGD	http://identifiers.org/rgd/	-	biolink RGD
+RGDID	=RGD	-	GO synonym of RGD
+FB	http://identifiers.org/fb/	-	biolink FB
+SGD	http://identifiers.org/sgd/	-	biolink SGD
+sgd	=SGD	-	case variant
+WB	http://identifiers.org/wb/	-	biolink WB
+WormBase	=WB	-	GO synonym of WB
+ZFIN	http://identifiers.org/zfin/	-	biolink ZFIN
+PomBase	https://www.pombase.org/gene/	-	biolink PomBase
+dictyBase	http://dictybase.org/gene/	-	biolink dictyBase
+DDB	=dictyBase	-	GO synonym of dictyBase
+Xenbase	http://www.xenbase.org/gene/showgene.do?method=display&geneId=	-	biolink Xenbase
+AspGD	http://www.aspergillusgenome.org/cgi-bin/locus.pl?dbid=	-	biolink AspGD
+ENSEMBL	http://identifiers.org/ensembl/	strip_version	biolink ENSEMBL
+Ensembl	=ENSEMBL	-	case variant
+ensembl	=ENSEMBL	-	case variant
+ENSEMBL_GeneID	=ENSEMBL	-	GO synonym of ENSEMBL
+PANTHER	http://identifiers.org/panther.node/	-	identifiers.org panther.node (GO uses PTN tree-node ids)
+AGI_LocusCode	http://identifiers.org/araport/	-	identifiers.org araport (AGI locus codes)
+araport11	=AGI_LocusCode	-	Araport11 gene models
+TAIR	=AGI_LocusCode	-	GPI xrefs carry AGI codes
+CGD	http://identifiers.org/cgd/	-	GO db-xrefs rdf_uri_prefix
+GeneDB	http://identifiers.org/genedb/	-	GO db-xrefs rdf_uri_prefix
+MaizeGDB_Locus	http://identifiers.org/maizegdb.locus/	-	GO db-xrefs rdf_uri_prefix
+GR_PROTEIN	http://identifiers.org/gramene.protein/	-	GO db-xrefs rdf_uri_prefix
+JaponicusDB	http://identifiers.org/japonicusdb/	-	identifiers.org style
+EcoCyc	http://identifiers.org/ecocyc/	-	identifiers.org style
+EcoliWiki	http://identifiers.org/ecoliwiki/	-	identifiers.org style
+PseudoCAP	http://identifiers.org/pseudomonas/	-	identifiers.org style
+NSGD	http://identifiers.org/nsgd/	-	identifiers.org style
+SGD_PWY	http://identifiers.org/sgd.pathways/	-	identifiers.org style
+UniRule	http://identifiers.org/unirule/	-	identifiers.org style
+ARBA	http://identifiers.org/arba/	-	identifiers.org style
+UniProtKB-SubCell	http://identifiers.org/uniprot.location/	-	identifiers.org style
+UniProtKB-KW	http://identifiers.org/uniprot.keyword/	-	identifiers.org style
+UniPathway	http://identifiers.org/upa/	-	identifiers.org style
+tfclass	http://identifiers.org/tfclass/	-	identifiers.org style
+MEROPS	http://identifiers.org/merops.entry/	-	identifiers.org style
+RefSeq	http://identifiers.org/refseq/	-	identifiers.org style
+EMBL	http://identifiers.org/insdc/	-	identifiers.org style
+ena	=EMBL	-	INSDC accession
+GenBank	=EMBL	-	INSDC accession
+GB	=EMBL	-	INSDC accession
+protein_id	http://identifiers.org/insdc.cds/	-	identifiers.org style
+NCBI_GP	http://identifiers.org/ncbiprotein/	-	identifiers.org style
+NCBI_gi	http://identifiers.org/ncbigi/	-	identifiers.org style
+JCVI_CMR	http://identifiers.org/jcvi.cmr/	-	identifiers.org style
+RAP2022-09-01	http://identifiers.org/rapdb.transcript/	-	RAP-DB transcript, prefix carries a release date
+orcid	https://orcid.org/	-	biolink ORCID
+ORCID	=orcid	-	case variant
+GOC	http://identifiers.org/goc/	-	GO curator ids in contributor-id
+GR	-	-	GPI Gramene transcript xrefs: dropped, not gene-level
+WGS	-	-	GPI WGS project xrefs: dropped, not gene-level
+MGII	-	-	GPI xrefs with a mangled MGI prefix: dropped

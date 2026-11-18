@@ -1,0 +1,36 @@
+# kgf build config for local and pilot builds. Once the registry entry in
+# registry/go-annotations.md is merged into okn-registry, render this from the
+# registry with kgf-rs's tools/okn-build-config.py instead, as kgf-wikidata
+# does, so the registry stays the one place the dataset's semantics live.
+schema: 1
+dataset:
+  id: "go-annotations"
+  iri: "https://purl.org/okn/frink/kg/go-annotations"
+  title: "Gene Ontology Annotations"
+  description: "Gene Ontology annotations of UniProtKB proteins, RNAcentral RNAs and Complex Portal complexes from each GO release, with their evidence, references, with/from, extensions and provenance, as RDF 1.2 triples with reifiers."
+  homepage: "https://geneontology.org/docs/go-annotations/"
+  license: "https://creativecommons.org/licenses/by/4.0/"
+semantics:
+  prefixes:
+    goann: "https://w3id.org/go-annotation-kg/vocab/"
+    obo: "http://purl.obolibrary.org/obo/"
+    GO: "http://purl.obolibrary.org/obo/GO_"
+    RO: "http://purl.obolibrary.org/obo/RO_"
+    BFO: "http://purl.obolibrary.org/obo/BFO_"
+    ECO: "http://purl.obolibrary.org/obo/ECO_"
+    NCBITaxon: "http://purl.obolibrary.org/obo/NCBITaxon_"
+    GO_REF: "http://purl.obolibrary.org/obo/go/references/"
+    UniProtKB: "http://purl.uniprot.org/uniprot/"
+    uniprot.isoform: "http://purl.uniprot.org/isoforms/"
+    RNAcentral: "http://identifiers.org/rnacentral/"
+    ComplexPortal: "https://www.ebi.ac.uk/complexportal/complex/"
+    PMID: "http://www.ncbi.nlm.nih.gov/pubmed/"
+    dcterms: "http://purl.org/dc/terms/"
+  authoritative_namespaces:
+    - goann
+  roles:
+    label:
+      - "http://www.w3.org/2000/01/rdf-schema#label"
+    synonym:
+      - "http://www.w3.org/2004/02/skos/core#altLabel"
+      - "https://w3id.org/go-annotation-kg/vocab/fullName"

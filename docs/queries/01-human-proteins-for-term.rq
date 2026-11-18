@@ -1,0 +1,10 @@
+# Human gene products involved in apoptotic process (GO:0006915).
+# The plain triple is enough: it is asserted only for positive annotations.
+PREFIX obo: <http://purl.obolibrary.org/obo/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?gp ?symbol WHERE {
+  ?gp obo:RO_0002331 obo:GO_0006915 ;
+      obo:RO_0002162 obo:NCBITaxon_9606 ;
+      rdfs:label ?symbol .
+}

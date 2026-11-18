@@ -1,0 +1,10 @@
+# Triples with both positive and NOT annotations.
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+
+SELECT ?gp ?relation ?term (COUNT(DISTINCT ?positive) AS ?for) (COUNT(DISTINCT ?negative) AS ?against) WHERE {
+  ?negative goann:negates <<( ?gp ?relation ?term )>> .
+  ?gp ?relation ?term .
+  ?positive rdf:reifies <<( ?gp ?relation ?term )>> .
+}
+GROUP BY ?gp ?relation ?term
