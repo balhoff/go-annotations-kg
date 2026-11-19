@@ -3,4 +3,5 @@
 //> using dep "org.apache.jena:jena-arq:6.2.0"
 //> using dep "com.github.scopt::scopt:4.1.0"
 //> using dep "org.slf4j:slf4j-nop:2.0.18"
+//> using dep "org.yaml:snakeyaml:2.2"
 //> using test.dep "org.scalameta::munit:1.3.4"

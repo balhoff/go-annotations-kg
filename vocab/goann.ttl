@@ -1,5 +1,4 @@
 @prefix goann: <https://w3id.org/go-annotation-kg/vocab/> .
-@prefix obo: <http://purl.obolibrary.org/obo/> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -49,28 +48,10 @@ goann:goVersion a owl:ObjectProperty ;
     rdfs:label "GO version" ;
     rdfs:comment "The go-version header of a source file: the GO release its annotations were checked against." .
 
-# ---- reused terms, labelled here so the graph is self-describing --------------
+# ---- GO-CAM terms, labelled here because no OWL file defines them -----------
+# Every other reused term (RO, BFO, ECO, GO, ...) is labelled by the labels
+# step, from its own ontology's OWL release.
 
 lego:evidence-with rdfs:label "evidence with" ;
     rdfs:comment "GO-CAM's property for the with/from column. Here its values are IRIs, one per identifier in GPAD column 7; in GO-CAM models they are CURIE strings." .
 lego:modelstate rdfs:label "model state" .
-obo:ECO_9000002 rdfs:label "has GO evidence code" .
-
-obo:RO_0002327 rdfs:label "enables" .
-obo:RO_0002326 rdfs:label "contributes to" .
-obo:RO_0002331 rdfs:label "involved in" .
-obo:RO_0002263 rdfs:label "acts upstream of" .
-obo:RO_0004034 rdfs:label "acts upstream of positive effect" .
-obo:RO_0004035 rdfs:label "acts upstream of negative effect" .
-obo:RO_0002264 rdfs:label "acts upstream of or within" .
-obo:RO_0004032 rdfs:label "acts upstream of or within positive effect" .
-obo:RO_0004033 rdfs:label "acts upstream of or within negative effect" .
-obo:BFO_0000050 rdfs:label "part of" .
-obo:RO_0001025 rdfs:label "located in" .
-obo:RO_0002432 rdfs:label "is active in" .
-obo:RO_0002325 rdfs:label "colocalizes with" .
-obo:RO_0002558 rdfs:label "has evidence" .
-obo:RO_0002162 rdfs:label "in taxon" .
-obo:RO_0002204 rdfs:label "gene product of" .
-obo:RO_0002180 rdfs:label "has component" .
-obo:RO_0002233 rdfs:label "has input" .

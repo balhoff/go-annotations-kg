@@ -291,6 +291,76 @@ Some assigners are missing from `groups.ttl`:
 The report counts these under `unresolved.assigned-by`. They want `groups.yaml`
 entries upstream.
 
+### Labels for external terms
+
+Every external term the graph uses gets an `rdfs:label`, so the graph reads on its own.
+That covers:
+
+- GO terms and the relations;
+- ECO classes and taxa;
+- the ontologies of extension targets (PR, CHEBI, EMAPA, UBERON, CL, WBbt, SO, FBbt,
+  WBls, DDANAT, ZFA, PO, FBdv);
+- GO_REFs.
+
+Only labels are included, and only for terms the graph uses. Gene products are
+labelled from the GPI, and groups from GO's `groups.ttl`.
+
+The labels step runs once per release, after the species conversions:
+
+1. Each conversion lists the OBO-namespace IRIs its output uses, including those that
+   occur only inside a `NOT` line's triple term.
+2. The step streams each needed ontology's OWL release once. It keeps only
+   `rdfs:label` triples whose subject is a used term in that ontology's own
+   namespace. An ontology's import of another's term (GO's own `go-plus.owl` imports
+   CHEBI and CL terms, for example) can carry a stale label, so it is never used.
+3. GO_REF titles come from the release's `gorefs.yaml`.
+4. Each ontology read is recorded by its `owl:versionIRI` as a `goann:SourceFile`, with
+   `pav:version`, and as a source the dataset `prov:wasDerivedFrom`.
+
+[`../ontologies.tsv`](../ontologies.tsv) names the source of each namespace:
+
+- GO and GO's legacy relations (GOREL) come from the release being converted;
+- ECO is the release's downloaded `eco.owl`;
+- RO labels the BFO relations GO uses;
+- every other namespace uses its OBO purl.
+
+In release 2026-08-05 the step labels 37,913 of the 37,975 ontology terms the graph
+uses, and writes 37,967 triples, labels and provenance included. Streaming the
+ontologies took about 12 minutes on a laptop; CHEBI alone took 9½.
+
+| Namespace | Used | Labelled | Source version |
+|---|---:|---:|---|
+| GO | 28,293 | 28,276 | `go/releases/2026-07-26` (the release's `go.owl`) |
+| PR | 4,201 | 4,183 | `pr/73.1` |
+| CHEBI | 1,577 | 1,572 | `chebi/257` |
+| EMAPA | 1,456 | 1,456 | `emapa/releases/2026-10-02` |
+| UBERON | 748 | 743 | `uberon/releases/2026-11-05` |
+| CL | 708 | 702 | `cl/releases/2026-11-13` |
+| NCBITaxon | 360 | 351 | `ncbitaxon/2026-11-09` |
+| WBbt | 213 | 212 | `wbbt/releases/2025-08-19` |
+| ECO | 152 | 152 | `eco/releases/2026-07-10` |
+| SO | 94 | 94 | `so/2026-08-07` |
+| RO, BFO, GOREL | 50 | 50 | `ro/releases/2026-09-04`; the release's `gorel.owl` |
+| GO_REF | 36 | 36 | the release's `gorefs.yaml` |
+| FBbt, WBls, DDANAT, ZFA, PO, FBdv | 87 | 86 | their OBO releases |
+
+The 62 unlabelled terms are listed in `labels.unlabelled.tsv`:
+
+- **Retired ids.** Where the ontology records a merge, the list names the current
+  term.
+  - 17 GO ids, all extension targets, which GOA's checks evidently miss. 16 of them
+    are merged into a current term: GO:0016021 (*integral component of membrane*)
+    into GO:0016020, for example.
+  - 9 NCBITaxon ids, all interacting taxa (106 lines). NCBITaxon:10633, for one, is
+    merged into NCBITaxon:1891767.
+  - A few CHEBI, CL, UBERON, WBbt and WBls extension targets.
+- **PR ids that PR does not define.** 18 UniProt-style ids such as `PR:P04230`.
+
+OMIM ids reach the graph only as GPI cross-references (16,578 of them). OMIM
+publishes no OWL release, so they are left unlabelled on purpose (`-` in
+`ontologies.tsv`), as are other databases' records: proteins, genes and InterPro
+entries cited in with/from or extensions.
+
 ## Column by column
 
 ### GPAD 2.0
@@ -425,17 +495,19 @@ refused rather than written, since it would make a well-formed but wrong IRI. An
 identifier with an unlisted prefix is dropped and counted in the run's report, so a
 new prefix in a later release shows up there.
 
-**Ontology content: labels for what the graph uses, and ECO's GO codes.** GO term
-labels and hierarchy, ECO and RO are in ubergraph, already in the OKN; copying them
-would pin a second, possibly different, version. The bundle does label the
-relations and reused terms it uses, in `vocab/goann.ttl`, so the graph reads on its
-own. ECO's GO evidence codes are included for the ECO classes used, about 150
-triples, because "no IEA" is the most common filter on GO annotations.
+**Labels for every external term used, and nothing more of the ontologies.** Per the
+OKN convention, reused external terms are encouraged and each gets an `rdfs:label` in
+this graph, even though another KG (ubergraph) may label it too: a graph should read
+on its own. Only labels of terms the graph uses are included, never whole ontologies;
+GO's hierarchy, definitions and synonyms stay in ubergraph. ECO's GO evidence codes
+are included for the ECO classes used, about 150 triples, because "no IEA" is the most
+common filter on GO annotations. See "Labels" below.
 
 ## Size (release 2026-08-05)
 
 From `make convert-all` and `make report` over all 172 `*-uniprot` pairs. Run with
-`-j8` on a 12-core laptop, the conversion takes about 110 seconds.
+`-j8` on a 12-core laptop, the conversion takes about 110 seconds; the labels step
+then takes about 12 minutes, most of it streaming CHEBI, NCBITaxon and PR.
 
 | | |
 |---|---:|
@@ -448,6 +520,7 @@ From `make convert-all` and `make report` over all 172 `*-uniprot` pairs. Run wi
 | annotated objects missing from the GPI | 107,523 |
 | extension classes, interacting taxa included | 173,049 |
 | triples written | 176,456,203 |
+| label triples (`labels.nt.gz`), provenance included | 37,967 |
 | N-Triples 1.2 output, gzipped | 1.1 GB |
 
 The asserted-triple count equals the number of distinct positive (object, relation,

@@ -1,0 +1,30 @@
+# Where the labels step finds each external term's rdfs:label. Every term is
+# labelled from its own ontology's official OWL release, never from another
+# ontology's import of it. Only the ontologies whose terms the converted
+# release uses are read, each streamed once and never stored.
+#
+# Columns (tab-separated):
+#   namespaces  comma-separated OBO namespaces this source is authoritative for
+#   source      URL or path; {release} is the GO release URL being converted;
+#               - leaves the namespace unlabelled on purpose
+#   note
+namespaces	source	note
+GO	{release}/ontology/go.owl	GO from the release being converted
+GOREL	{release}/ontology/extensions/gorel.owl	GO's legacy relations, from the release
+ECO	http://purl.obolibrary.org/obo/eco.owl	the Makefile passes the release's downloaded eco.owl instead
+RO,BFO	http://purl.obolibrary.org/obo/ro.owl	RO labels the BFO relations GO uses, as GO does
+NCBITaxon	http://purl.obolibrary.org/obo/ncbitaxon.owl	about 2.1 GB
+PR	http://purl.obolibrary.org/obo/pr.owl	about 1.3 GB
+CHEBI	http://purl.obolibrary.org/obo/chebi.owl	about 0.9 GB
+UBERON	http://purl.obolibrary.org/obo/uberon.owl
+CL	http://purl.obolibrary.org/obo/cl.owl
+EMAPA	http://purl.obolibrary.org/obo/emapa.owl
+WBbt	http://purl.obolibrary.org/obo/wbbt.owl
+SO	http://purl.obolibrary.org/obo/so.owl
+FBbt	http://purl.obolibrary.org/obo/fbbt.owl
+WBls	http://purl.obolibrary.org/obo/wbls.owl
+DDANAT	http://purl.obolibrary.org/obo/ddanat.owl
+ZFA	http://purl.obolibrary.org/obo/zfa.owl
+PO	http://purl.obolibrary.org/obo/po.owl
+FBdv	http://purl.obolibrary.org/obo/fbdv.owl
+OMIM	-	only GPI cross-references (rdfs:seeAlso); OMIM publishes no OWL release

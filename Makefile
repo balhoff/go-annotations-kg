@@ -111,7 +111,23 @@ $(WORK)/rdf/%.nt.gz: $(WORK)/input/gpad/%-uniprot.gpad.gz $(WORK)/input/gpi/%-un
 	  --eco "$(WORK)/input/eco.owl" --eco-source "$(ECO_URL)" \
 	  --go-release "$(RELEASE)" --go-release-doi "$(WORK)/input/metadata/release-archive-doi.json" \
 	  --dataset-iri "$(DATASET_IRI)" --converter-version "$(CONVERTER_VERSION)" \
-	  --report "$(WORK)/rdf/$*.report.tsv" --output "$@"
+	  --terms-output "$(WORK)/rdf/$*.terms.txt" --report "$(WORK)/rdf/$*.report.tsv" --output "$@"
+
+# An rdfs:label for every external term the release uses, from the term's own
+# ontology (ontologies.tsv): GO from the release's go.owl, the release's ECO, and
+# each other ontology's OWL release, streamed from the network and never stored.
+# GO_REF titles come from the release's gorefs.yaml.
+SPECIES = $(if $(wildcard $(SPECIES_LIST)),$(shell cat "$(SPECIES_LIST)"))
+LABELS := $(WORK)/rdf/labels.nt.gz
+
+$(LABELS): $(foreach s,$(SPECIES),$(WORK)/rdf/$(s).nt.gz) $(WORK)/input/eco.owl \
+  $(WORK)/input/metadata/gorefs.yaml ontologies.tsv $(JAR)
+	java $(JAVA_OPTS) -cp "$(JAR)" org.renci.goannotationkg.Labels --ontologies ontologies.tsv \
+	  --release-url "$(GO_RELEASE_URL)" --override ECO="$(WORK)/input/eco.owl" \
+	  --gorefs "$(WORK)/input/metadata/gorefs.yaml" --gorefs-source "$(GO_RELEASE_URL)/metadata/gorefs.yaml" \
+	  --dataset-iri "$(DATASET_IRI)" --report "$(WORK)/rdf/labels.report.tsv" \
+	  --unlabelled "$(WORK)/rdf/labels.unlabelled.tsv" --output "$@" \
+	  $(foreach s,$(SPECIES),"$(WORK)/rdf/$(s).terms.txt")
 
 $(WORK)/rdf/vocab.ttl: vocab/goann.ttl
 	@mkdir -p "$(dir $@)"
@@ -124,7 +140,7 @@ convert:
 # Two steps, so that Make knows the species before it plans the conversions.
 convert-all: $(SPECIES_LIST) $(JAR) $(METADATA)
 	$(MAKE) --no-print-directory RELEASE=$(RELEASE) \
-	  $$(sed 's|.*|$(WORK)/rdf/&.nt.gz|' "$(SPECIES_LIST)") "$(WORK)/rdf/vocab.ttl"
+	  $$(sed 's|.*|$(WORK)/rdf/&.nt.gz|' "$(SPECIES_LIST)") "$(WORK)/rdf/vocab.ttl" "$(LABELS)"
 
 # Always rewritten, from whatever species reports exist now.
 report: $(SPECIES_LIST)
@@ -149,7 +165,7 @@ PREVIOUS_VERSION ?= $(shell ls -1 "$(BUNDLE_DIR)" 2>/dev/null | grep -E '^[0-9]{
   | awk '$$0 < "$(RELEASE)"' | sort | tail -1)
 STAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
 
-bundle: report
+bundle: report $(LABELS)
 	@if [ -e "$(BUNDLE_DIR)/$(RELEASE)" ] && [ "$(REPLACE)" != 1 ]; then \
 	  echo "$(BUNDLE_DIR)/$(RELEASE) exists; pass REPLACE=1 to build a replacement" >&2; exit 1; fi
 	@if [ -e "$(STAGING_DIR)/$(RELEASE)" ]; then \
@@ -159,7 +175,8 @@ bundle: report
 	  $(if $(PREVIOUS_VERSION),--previous-version "$(PREVIOUS_VERSION)") \
 	  --out "$(STAGING_DIR)/$(RELEASE)" \
 	  --source-url "$(GO_RELEASE_URL)/annotations/" \
-	  $$(sed 's|.*|--input $(WORK)/rdf/&.nt.gz|' "$(SPECIES_LIST)") --input "$(WORK)/rdf/vocab.ttl"
+	  $$(sed 's|.*|--input $(WORK)/rdf/&.nt.gz|' "$(SPECIES_LIST)") --input "$(WORK)/rdf/vocab.ttl" \
+	  --input "$(LABELS)"
 	if [ -e "$(BUNDLE_DIR)/$(RELEASE)" ]; then mkdir -p "$(REPLACED_DIR)" && \
 	  mv "$(BUNDLE_DIR)/$(RELEASE)" "$(REPLACED_DIR)/$(RELEASE)-$(STAMP)"; fi
 	mv "$(STAGING_DIR)/$(RELEASE)" "$(BUNDLE_DIR)/$(RELEASE)"

@@ -356,6 +356,19 @@ class ConverterSuite extends FunSuite:
     assertEquals(objects(g, snapshot, Vocab.Pav.version), Set(lit("2026-08-05")))
     assert(objects(g, u(datasetIri), Vocab.Prov.wasDerivedFrom).contains(snapshot))
 
+  test("lists the ontology terms it used, including those only inside triple terms"):
+    val dir = Files.createTempDirectory("goakg-terms")
+    val gpadFile = dir.resolve("HUMAN-uniprot.gpad")
+    // Without the positive IBA line, GO:0006915 occurs only in the NOT line's triple term.
+    Files.writeString(gpadFile, gpad.linesIterator.filterNot(_.contains("GO_Central")).mkString("", "\n", "\n"), UTF_8)
+    val terms = dir.resolve("HUMAN.terms.txt")
+    Main.run(Config(prefixes = "prefixes.tsv", gpad = gpadFile.toString, output = dir.resolve("out.nt").toString,
+      termsOutput = Some(terms.toString), quiet = true))
+    val listed = Files.readAllLines(terms, UTF_8).asScala.toSet
+    for curie <- Seq("GO:0006915", "GO:0005515", "RO:0002331", "ECO:0000315", "NCBITaxon:5476", "RO:0002233", "GO_REF:0000115") do
+      assert(listed.contains(iri(curie).getURI), s"$curie missing from ${listed.toSeq.sorted.mkString(", ")}")
+    assert(!listed.exists(_.startsWith("http://purl.uniprot.org/")))
+
   test("uses only the goann terms that have no existing equivalent"):
     val used = standard.graph.find().asScala.flatMap(t => Seq(t.getPredicate, t.getObject)).filter(_.isURI)
       .map(_.getURI).filter(_.startsWith(Vocab.GoAnnNamespace)).map(_.stripPrefix(Vocab.GoAnnNamespace)).toSet

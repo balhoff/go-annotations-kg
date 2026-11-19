@@ -57,6 +57,10 @@ final class Converter(
   private val usedEco = mutable.LinkedHashSet.empty[String]
   private val modelStates = mutable.HashSet.empty[(Node, String)]
 
+  /** Every OBO-namespace IRI written, inside triple terms too: what the labels step must label. */
+  val usedTerms: mutable.Set[String] = mutable.HashSet.empty[String]
+  private val oboNamespace = "http://purl.obolibrary.org/obo/"
+
   def convert(
       species: String,
       gpad: Source,
@@ -401,3 +405,15 @@ final class Converter(
   private def emit(subject: Node, predicate: Node, obj: Node): Unit =
     out.triple(Triple.create(subject, predicate, obj))
     stats.add("triples")
+    track(subject)
+    track(predicate)
+    track(obj)
+
+  private def track(node: Node): Unit =
+    if node.isURI then
+      if node.getURI.startsWith(oboNamespace) then usedTerms += node.getURI
+    else if node.isTripleTerm then
+      val t = node.getTriple
+      track(t.getSubject)
+      track(t.getPredicate)
+      track(t.getObject)

@@ -27,6 +27,7 @@ final case class Config(
     converterVersion: Option[String] = None,
     output: String = "-",
     report: Option[String] = None,
+    termsOutput: Option[String] = None,
     strict: Boolean = false,
     quiet: Boolean = false,
 )
@@ -110,6 +111,10 @@ object Main:
         .valueName("<output.nt[.gz]>")
         .action((value, config) => config.copy(output = value))
         .text("N-Triples 1.2 output, or - for stdout (default: -)"),
+      opt[String]("terms-output")
+        .valueName("<terms.txt>")
+        .action((value, config) => config.copy(termsOutput = Some(value)))
+        .text("write every OBO-namespace IRI the output uses, one per line, for the labels step"),
       opt[String]("report")
         .valueName("<report.tsv>")
         .action((value, config) => config.copy(report = Some(value)))
@@ -182,6 +187,9 @@ object Main:
       rdf.finish()
       val stats = converter.stats
       config.report.foreach(path => Files.writeString(Path.of(path), stats.report, UTF_8))
+      config.termsOutput.foreach { path =>
+        Files.writeString(Path.of(path), converter.usedTerms.toSeq.sorted.mkString("", "\n", "\n"), UTF_8)
+      }
       val lost = stats("dropped.gpad-line") + stats("dropped.annotation")
       if config.strict && lost > 0 then
         throw ConversionException(s"$lost GPAD lines or annotations were dropped (--strict); see the report")

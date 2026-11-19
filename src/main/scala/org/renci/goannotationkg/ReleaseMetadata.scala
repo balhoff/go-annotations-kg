@@ -13,7 +13,7 @@ final case class Group(iri: String, shorthand: String, name: Option[String])
 /** An ECO release: its GO evidence codes, and the version its owl:versionIRI names. */
 final case class EcoRelease(codes: Map[String, Seq[String]], versionIri: Option[String]):
   /** "2026-07-10" from ".../eco/releases/2026-07-10/eco.owl". */
-  def version: Option[String] = versionIri.collect { case s"$_/releases/$v/$_" => v }
+  def version: Option[String] = versionIri.flatMap(Labels.versionOf)
 
 /** What GPAD values are resolved against: GO's groups, and ECO's GO evidence codes. */
 final case class ReleaseMetadata(
