@@ -8,7 +8,7 @@ frink-options:
   kgf:
     semantics:
       prefixes:
-        goann: "https://w3id.org/go-annotation-kg/vocab/"
+        goann: "https://w3id.org/go-annotations-kg/vocab/"
         GO: "http://purl.obolibrary.org/obo/GO_"
         RO: "http://purl.obolibrary.org/obo/RO_"
         BFO: "http://purl.obolibrary.org/obo/BFO_"

@@ -3,7 +3,7 @@
 # lego:evidence-with is GO-CAM's property for the with/from column.
 PREFIX obo: <http://purl.obolibrary.org/obo/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+PREFIX goann: <https://w3id.org/go-annotations-kg/vocab/>
 PREFIX lego: <http://geneontology.org/lego/>
 PREFIX UniProtKB: <http://purl.uniprot.org/uniprot/>
 

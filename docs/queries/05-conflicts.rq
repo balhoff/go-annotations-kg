@@ -2,7 +2,7 @@
 # its triple, so these triples are asserted. Joining the two kinds of reifier on
 # the whole triple term, starting from the few NOT annotations, keeps it cheap.
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+PREFIX goann: <https://w3id.org/go-annotations-kg/vocab/>
 
 SELECT ?gp ?relation ?term (COUNT(DISTINCT ?positive) AS ?for) (COUNT(DISTINCT ?negative) AS ?against) WHERE {
   ?negative a goann:NegatedAnnotation ;

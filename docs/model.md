@@ -58,9 +58,9 @@ The KGF manifest's `previous_version` names the newest bundle of an earlier rele
     pav:version "2026-08-05" ;
     prov:wasDerivedFrom <https://doi.org/10.5281/zenodo.21844811> ,
                         <http://purl.obolibrary.org/obo/eco/releases/2026-07-10/eco.owl> ;
-    pav:createdWith <https://w3id.org/go-annotation-kg/> .
+    pav:createdWith <https://github.com/balhoff/go-annotations-kg> .
 
-<https://w3id.org/go-annotation-kg/> rdfs:label "go-annotation-kg" ;
+<https://github.com/balhoff/go-annotations-kg> rdfs:label "go-annotations-kg" ;
     pav:version "621b65a" .                                        # git describe; "-dirty" if uncommitted
 ```
 
@@ -89,7 +89,7 @@ PREFIX ECO: <http://purl.obolibrary.org/obo/ECO_>
 PREFIX GO_REF: <http://purl.obolibrary.org/obo/go/references/>
 PREFIX UniProtKB: <http://purl.uniprot.org/uniprot/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
-PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+PREFIX goann: <https://w3id.org/go-annotations-kg/vocab/>
 PREFIX lego: <http://geneontology.org/lego/>
 PREFIX pav: <http://purl.org/pav/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -162,7 +162,7 @@ same job without leaving the standard idiom.
 
 The flag is the type, not a boolean:
 
-- every reifier has exactly one of the two types, which are declared disjoint;
+- every reifier has exactly one of the two types;
 - the class partition counts the two kinds apart;
 - with a boolean on `NOT` lines only, "positive" would rest on a value being
   absent.
@@ -424,6 +424,14 @@ and `goann:goVersion`. For each, nothing existing fit:
   closer;
 - GO-CAM keeps a `,` group as one literal string;
 - NEO drops the canonical id, and UniProt models isoforms as sequences.
+
+They form an RDF vocabulary, not an OWL ontology. The classes are `rdfs:Class` and the
+properties `rdf:Property`, with no domains, ranges or disjointness axioms; each
+term's comment says what its values are. The graph is not OWL DL anyway: an
+extension is an anonymous class used as a property value, and the main triple links a
+gene product straight to a GO class, as GPAD does, setting OWL semantics aside. RDFS
+domains would also do harm: a domain of `goann:Annotation` on `goann:extension` would
+type every `NOT` reifier with an extension as a positive annotation too.
 
 Everything else reuses a precedent, chosen in 2026-11 from Minerva (GO's GO-CAM →
 GPAD exporter, which names each GPAD column in RDF), RO, ECO, PAV, PROV and UniProt

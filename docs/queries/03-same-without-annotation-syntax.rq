@@ -3,7 +3,7 @@
 PREFIX obo: <http://purl.obolibrary.org/obo/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
-PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+PREFIX goann: <https://w3id.org/go-annotations-kg/vocab/>
 PREFIX UniProtKB: <http://purl.uniprot.org/uniprot/>
 
 SELECT ?relation ?term ?code ?eco ?reference WHERE {

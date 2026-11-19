@@ -12,7 +12,7 @@ dataset:
   license: "https://creativecommons.org/licenses/by/4.0/"
 semantics:
   prefixes:
-    goann: "https://w3id.org/go-annotation-kg/vocab/"
+    goann: "https://w3id.org/go-annotations-kg/vocab/"
     obo: "http://purl.obolibrary.org/obo/"
     GO: "http://purl.obolibrary.org/obo/GO_"
     RO: "http://purl.obolibrary.org/obo/RO_"

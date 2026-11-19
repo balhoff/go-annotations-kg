@@ -1,52 +1,56 @@
-@prefix goann: <https://w3id.org/go-annotation-kg/vocab/> .
+@prefix goann: <https://w3id.org/go-annotations-kg/vocab/> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix lego: <http://geneontology.org/lego/> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 # Vocabulary of the GO annotation knowledge graph. It is loaded into every
 # bundle, so the graph describes its own terms. Most of what the graph says
 # uses existing vocabularies (RO, ECO, Dublin Core, PAV, PROV, oboInOwl,
 # GO-CAM's lego, UniProt core); these are the terms nothing existing covers.
 # docs/model.md explains the model.
+#
+# This is an RDF vocabulary, not an OWL ontology: the graph is not OWL DL (an
+# annotation's extension is a class used as a value), so the terms are
+# rdfs:Class and rdf:Property, with no domains, ranges or disjointness axioms.
+# The comments say what each property's values are. owl:Ontology only names
+# the vocabulary, as DCAT's does.
 
-<https://w3id.org/go-annotation-kg/vocab/> a owl:Ontology ;
+<https://w3id.org/go-annotations-kg/vocab/> a owl:Ontology ;
     rdfs:label "GO annotation KG vocabulary" ;
     rdfs:comment "Terms for GO annotations converted from GPAD 2.0 and GPI 2.0 with RDF 1.2 triple terms." .
 
 # ---- classes ---------------------------------------------------------------
 
-goann:Annotation a owl:Class ;
+goann:Annotation a rdfs:Class ;
     rdfs:label "GO annotation" ;
-    rdfs:comment "One positive line of a GPAD file: a statement that the proposition it reifies (rdf:reifies <<( <gene product> <relation> <GO term> )>>) holds. That triple is asserted in the graph. The node carries the line's evidence, reference, with/from, date, assigner, extensions and properties." .
+    rdfs:comment "One positive line of a GPAD file: a statement that the proposition it reifies (rdf:reifies <<( <gene product> <relation> <GO term> )>>) holds. That triple is asserted in the graph. The node carries the line's evidence, reference, with/from, date, assigner, extensions and properties. No reifier is both a goann:Annotation and a goann:NegatedAnnotation." .
 
-goann:NegatedAnnotation a owl:Class ;
+goann:NegatedAnnotation a rdfs:Class ;
     rdfs:label "negated GO annotation" ;
-    rdfs:comment "One GPAD line with the NOT qualifier: a statement that the proposition it reifies does not hold. It never causes its triple to be asserted; the triple is asserted only if a positive line also states it. Every reifier in the graph has exactly one of the types goann:Annotation and goann:NegatedAnnotation, so a query for supporting evidence should ask for goann:Annotation." ;
-    owl:disjointWith goann:Annotation .
+    rdfs:comment "One GPAD line with the NOT qualifier: a statement that the proposition it reifies does not hold. It never causes its triple to be asserted; the triple is asserted only if a positive line also states it. Every reifier in the graph has exactly one of the types goann:Annotation and goann:NegatedAnnotation, so a query for supporting evidence should ask for goann:Annotation." .
 
-goann:SourceFile a owl:Class ;
+goann:SourceFile a rdfs:Class ;
     rdfs:label "source file" ;
-    rdfs:comment "A file a bundle was built from: a GPAD or GPI file with its header properties, or a metadata file (GO's groups and db-xrefs, ECO)." .
+    rdfs:comment "A file a bundle was built from: a GPAD or GPI file with its header properties, a metadata file (GO's groups, db-xrefs and GO_REFs), or an ontology release read for evidence codes or labels, named by its version IRI." .
 
-# ---- properties ----------------------------------------------------------------
+# ---- properties ------------------------------------------------------------
 
-goann:extension a owl:ObjectProperty ;
+goann:extension a rdf:Property ;
     rdfs:label "annotation extension" ;
-    rdfs:comment "One '|'-separated conjunction from GPAD column 11, as an anonymous class whose rdfs:subClassOf values are owl:someValuesFrom restrictions. Read the annotated class as the GO term intersected with it. Several values are independent: each could be its own annotation. An interacting taxon (GPAD column 8) is a has input (RO:0002233) restriction in every conjunction, as GO-CAM writes it." .
+    rdfs:comment "Relates a goann:Annotation or goann:NegatedAnnotation to one '|'-separated conjunction from GPAD column 11, written as an anonymous class whose rdfs:subClassOf values are owl:someValuesFrom restrictions. Read the annotated class as the GO term intersected with it. Several values are independent: each could be its own annotation. An interacting taxon (GPAD column 8) is a has input (RO:0002233) restriction in every conjunction, as GO-CAM writes it." .
 
-goann:withFromGroup a owl:ObjectProperty ;
+goann:withFromGroup a rdf:Property ;
     rdfs:label "with/from group" ;
-    rdfs:comment "A ','-joined group from GPAD column 7. Its members (rdfs:member) are evidence only together, for example the genes of a double mutant. Every member is also a lego:evidence-with value of the annotation." .
+    rdfs:comment "Relates an annotation to a blank node standing for one ','-joined group from GPAD column 7. The group's members (rdfs:member, IRIs) are evidence only together, for example the genes of a double mutant. Every member is also a lego:evidence-with value of the annotation." .
 
-goann:canonicalObject a owl:ObjectProperty ;
+goann:canonicalObject a rdf:Property ;
     rdfs:label "canonical object" ;
-    rdfs:comment "GPI column 8 when it differs from the entity: the gene-centric entry an isoform or processed chain belongs to." .
+    rdfs:comment "Relates a GPI entity to the IRI in its GPI column 8, when that differs from the entity: the gene-centric entry an isoform or processed chain belongs to." .
 
-goann:goVersion a owl:ObjectProperty ;
+goann:goVersion a rdf:Property ;
     rdfs:label "GO version" ;
-    rdfs:comment "The go-version header of a source file: the GO release its annotations were checked against." .
+    rdfs:comment "Relates a GPAD or GPI source file to the GO release its annotations were checked against, from its go-version header. The value is the IRI the header gives, a versioned GO file such as http://purl.obolibrary.org/obo/go/releases/2026-07-26/extensions/go-plus.ofn; it is a plain literal only if the header holds no IRI." .
 
 # ---- GO-CAM terms, labelled here because no OWL file defines them -----------
 # Every other reused term (RO, BFO, ECO, GO, ...) is labelled by the labels

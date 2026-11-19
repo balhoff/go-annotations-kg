@@ -5,7 +5,7 @@ PREFIX obo: <http://purl.obolibrary.org/obo/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+PREFIX goann: <https://w3id.org/go-annotations-kg/vocab/>
 
 SELECT DISTINCT ?gp ?symbol ?term WHERE {
   ?annotation a goann:Annotation ;

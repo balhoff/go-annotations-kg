@@ -33,7 +33,7 @@ SPECIES_LIST := $(WORK)/species.txt
 
 SCALA_CLI ?= scala-cli
 JAVA_OPTS ?= -Xmx2g
-JAR := target/go-annotation-kg.jar
+JAR := target/go-annotations-kg.jar
 CURL := curl --fail --location --silent --show-error --retry 8 --retry-all-errors
 
 KGF ?= kgf

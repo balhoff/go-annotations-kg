@@ -37,8 +37,8 @@ object Main:
   private val parser =
     import builder.*
     OParser.sequence(
-      programName("go-annotation-kg"),
-      head("go-annotation-kg", "0.1.0"),
+      programName("go-annotations-kg"),
+      head("go-annotations-kg", "0.1.0"),
       help("help").abbr("h").text("show this help message"),
       version("version").text("show the version"),
       opt[String]("prefixes")
@@ -137,7 +137,7 @@ object Main:
           0
         catch
           case NonFatal(error) =>
-            System.err.println(s"go-annotation-kg: ${error.getMessage}")
+            System.err.println(s"go-annotations-kg: ${error.getMessage}")
             1
     if exitCode != 0 then sys.exit(exitCode)
 

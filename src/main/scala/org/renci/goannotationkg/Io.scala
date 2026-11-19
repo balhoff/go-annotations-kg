@@ -74,7 +74,7 @@ object Io:
       Files.createDirectories(parent)
       val compressed = name.endsWith(".gz")
       val suffix = if compressed then ".tmp.gz" else ".tmp"
-      val temporary = Files.createTempFile(parent, ".go-annotation-kg-", suffix)
+      val temporary = Files.createTempFile(parent, ".go-annotations-kg-", suffix)
 
       try
         val raw = Files.newOutputStream(temporary)

@@ -362,7 +362,7 @@ final class Converter(
       p.converterVersion.foreach { version =>
         val tool = uri(ProjectIri)
         emit(dataset, Pav.createdWith, tool)
-        emit(tool, Rdfs.label, literal("go-annotation-kg"))
+        emit(tool, Rdfs.label, literal("go-annotations-kg"))
         emit(tool, Pav.version, literal(version))
       }
     }

@@ -5,10 +5,10 @@ import org.apache.jena.graph.{Node, NodeFactory}
 /** Every IRI the converter writes that does not come from the data. */
 object Vocab:
   /** The KG's own vocabulary, for what no existing vocabulary covers. Definitions are in vocab/goann.ttl. */
-  val GoAnnNamespace = "https://w3id.org/go-annotation-kg/vocab/"
+  val GoAnnNamespace = "https://w3id.org/go-annotations-kg/vocab/"
 
-  /** This project, as the tool a dataset was created with (pav:createdWith). */
-  val ProjectIri = "https://w3id.org/go-annotation-kg/"
+  /** This project's repository, as the tool a dataset was created with (pav:createdWith). */
+  val ProjectIri = "https://github.com/balhoff/go-annotations-kg"
 
   /** The GPAD/GPI 2.0 specification, which every accepted 2.x file conforms to. */
   val GpadGpiSpec = "https://github.com/geneontology/go-annotation/blob/master/specs/gpad-gpi-2-0.md"

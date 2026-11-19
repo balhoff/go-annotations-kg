@@ -60,8 +60,8 @@ object Labels:
   private val parser =
     import builder.*
     OParser.sequence(
-      programName("go-annotation-kg-labels"),
-      head("go-annotation-kg labels", "0.1.0"),
+      programName("go-annotations-kg-labels"),
+      head("go-annotations-kg labels", "0.1.0"),
       help("help").abbr("h").text("show this help message"),
       opt[String]("ontologies")
         .required()
@@ -119,7 +119,7 @@ object Labels:
           0
         catch
           case NonFatal(error) =>
-            System.err.println(s"go-annotation-kg labels: ${error.getMessage}")
+            System.err.println(s"go-annotations-kg labels: ${error.getMessage}")
             1
     if exitCode != 0 then sys.exit(exitCode)
 

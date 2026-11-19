@@ -1,4 +1,4 @@
-# go-annotation-kg
+# go-annotations-kg
 
 Converts a Gene Ontology release's annotations to RDF 1.2 and builds a KGF bundle of
 them for the Open Knowledge Network. The aim is one canonical GO annotation graph
@@ -134,4 +134,4 @@ scala-cli run . --server=false -- --prefixes prefixes.tsv \
 Input compression is detected; output is gzipped when its name ends in `.gz`. The
 output is written to a temporary file and moved into place only when the conversion
 succeeds. `--strict` fails without output if any GPAD line or annotation was dropped.
-`make build` packages `target/go-annotation-kg.jar`, which the Makefile runs.
+`make build` packages `target/go-annotations-kg.jar`, which the Makefile runs.

@@ -3,7 +3,7 @@
 # << s p o ~ r >> is SPARQL 1.2's reified-triple shorthand for r rdf:reifies <<( s p o )>>.
 PREFIX obo: <http://purl.obolibrary.org/obo/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
-PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+PREFIX goann: <https://w3id.org/go-annotations-kg/vocab/>
 
 SELECT ?gp ?relation ?term ?code ?reference WHERE {
   << ?gp ?relation ?term ~ ?annotation >> a goann:NegatedAnnotation ;
