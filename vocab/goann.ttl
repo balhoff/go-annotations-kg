@@ -3,12 +3,14 @@
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix dcterms: <http://purl.org/dc/terms/> .
-@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix lego: <http://geneontology.org/lego/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 # Vocabulary of the GO annotation knowledge graph. It is loaded into every
-# bundle, so the graph describes its own terms. docs/model.md explains the model.
+# bundle, so the graph describes its own terms. Most of what the graph says
+# uses existing vocabularies (RO, ECO, Dublin Core, PAV, PROV, oboInOwl,
+# GO-CAM's lego, UniProt core); these are the terms nothing existing covers.
+# docs/model.md explains the model.
 
 <https://w3id.org/go-annotation-kg/vocab/> a owl:Ontology ;
     rdfs:label "GO annotation KG vocabulary" ;
@@ -27,81 +29,32 @@ goann:NegatedAnnotation a owl:Class ;
 
 goann:SourceFile a owl:Class ;
     rdfs:label "source file" ;
-    rdfs:comment "A published GPAD or GPI file a bundle was built from, with its header properties." .
+    rdfs:comment "A file a bundle was built from: a GPAD or GPI file with its header properties, or a metadata file (GO's groups and db-xrefs, ECO)." .
 
-# ---- annotation properties ---------------------------------------------------
-
-goann:evidenceCode a owl:DatatypeProperty ;
-    rdfs:label "GO evidence code" ;
-    rdfs:comment "The three-letter GO evidence code (IEA, IDA, IBA, ...) that the GPAD's comment=go_evidence:XXX property gives. The ECO class is on obo:RO_0002558." ;
-    rdfs:range xsd:string .
-
-goann:withFrom a owl:ObjectProperty ;
-    rdfs:label "with/from" ;
-    rdfs:comment "Every identifier in GPAD column 7. Entries joined with ',' are evidence only together; goann:withFromGroup records those groups." .
-
-goann:withFromGroup a owl:ObjectProperty ;
-    rdfs:label "with/from group" ;
-    rdfs:comment "A ','-joined group from GPAD column 7. Its members (rdfs:member) are evidence together, for example the genes of a double mutant." .
-
-goann:interactingTaxon a owl:ObjectProperty ;
-    rdfs:label "interacting taxon" ;
-    rdfs:comment "GPAD column 8: the taxon of another organism involved in the annotated function or process, such as a host." .
-
-goann:assignedBy a owl:DatatypeProperty ;
-    rdfs:label "assigned by" ;
-    rdfs:comment "GPAD column 10: the database that made the annotation, as GO's group abbreviation (UniProt, MGI, GO_Central, ...)." ;
-    rdfs:range xsd:string .
+# ---- properties ----------------------------------------------------------------
 
 goann:extension a owl:ObjectProperty ;
     rdfs:label "annotation extension" ;
-    rdfs:comment "One '|'-separated conjunction from GPAD column 11, as an anonymous class whose rdfs:subClassOf values are owl:someValuesFrom restrictions. Read the annotated class as the GO term intersected with it. Several values are independent: each could be its own annotation." .
+    rdfs:comment "One '|'-separated conjunction from GPAD column 11, as an anonymous class whose rdfs:subClassOf values are owl:someValuesFrom restrictions. Read the annotated class as the GO term intersected with it. Several values are independent: each could be its own annotation. An interacting taxon (GPAD column 8) is a has input (RO:0002233) restriction in every conjunction, as GO-CAM writes it." .
 
-goann:gocamModel a owl:ObjectProperty ;
-    rdfs:label "GO-CAM model" ;
-    rdfs:comment "The GO-CAM model this annotation was derived from (GPAD property noctua-model-id)." .
-
-goann:modelState a owl:DatatypeProperty ;
-    rdfs:label "GO-CAM model state" ;
-    rdfs:comment "The state of the GO-CAM model (GPAD property model-state), such as production." .
-
-goann:reviewer a owl:ObjectProperty ;
-    rdfs:label "reviewer" ;
-    rdfs:comment "A curator who last reviewed the annotation (GPAD property reviewer-id)." .
-
-goann:reviewed a owl:DatatypeProperty ;
-    rdfs:label "reviewed" ;
-    rdfs:comment "A date on which the annotation was reviewed (GPAD property reviewed-date)." .
-
-# ---- gene product properties -------------------------------------------------
-
-goann:fullName a owl:DatatypeProperty ;
-    rdfs:label "full name" ;
-    rdfs:comment "GPI column 3, the gene product's name. rdfs:label holds the symbol (GPI column 2), or this name when there is no symbol." .
-
-goann:dbSubset a owl:DatatypeProperty ;
-    rdfs:label "UniProtKB subset" ;
-    rdfs:comment "Swiss-Prot (reviewed) or TrEMBL (unreviewed), from the GPI property db_subset." .
+goann:withFromGroup a owl:ObjectProperty ;
+    rdfs:label "with/from group" ;
+    rdfs:comment "A ','-joined group from GPAD column 7. Its members (rdfs:member) are evidence only together, for example the genes of a double mutant. Every member is also a lego:evidence-with value of the annotation." .
 
 goann:canonicalObject a owl:ObjectProperty ;
     rdfs:label "canonical object" ;
     rdfs:comment "GPI column 8 when it differs from the entity: the gene-centric entry an isoform or processed chain belongs to." .
-
-goann:xref a owl:ObjectProperty ;
-    rdfs:label "database cross-reference" ;
-    rdfs:comment "GPI column 10: identifiers of the same gene product, or of its gene, in other databases (HGNC, MGI, Ensembl, RefSeq, ...)." .
-
-# ---- source file properties --------------------------------------------------
-
-goann:formatVersion a owl:DatatypeProperty ;
-    rdfs:label "format version" ;
-    rdfs:comment "The gpad-version or gpi-version header of a source file." .
 
 goann:goVersion a owl:ObjectProperty ;
     rdfs:label "GO version" ;
     rdfs:comment "The go-version header of a source file: the GO release its annotations were checked against." .
 
 # ---- reused terms, labelled here so the graph is self-describing --------------
+
+lego:evidence-with rdfs:label "evidence with" ;
+    rdfs:comment "GO-CAM's property for the with/from column. Here its values are IRIs, one per identifier in GPAD column 7; in GO-CAM models they are CURIE strings." .
+lego:modelstate rdfs:label "model state" .
+obo:ECO_9000002 rdfs:label "has GO evidence code" .
 
 obo:RO_0002327 rdfs:label "enables" .
 obo:RO_0002326 rdfs:label "contributes to" .
@@ -120,3 +73,4 @@ obo:RO_0002558 rdfs:label "has evidence" .
 obo:RO_0002162 rdfs:label "in taxon" .
 obo:RO_0002204 rdfs:label "gene product of" .
 obo:RO_0002180 rdfs:label "has component" .
+obo:RO_0002233 rdfs:label "has input" .

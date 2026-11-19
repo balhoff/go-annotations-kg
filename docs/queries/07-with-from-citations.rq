@@ -1,12 +1,16 @@
 # Annotations that cite a protein in with/from: IPI annotations of its
 # interaction partners, and IBA/ISS annotations that transferred function from it.
+# lego:evidence-with is GO-CAM's property for the with/from column.
+PREFIX obo: <http://purl.obolibrary.org/obo/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+PREFIX lego: <http://geneontology.org/lego/>
 PREFIX UniProtKB: <http://purl.uniprot.org/uniprot/>
 
 SELECT ?gp ?relation ?term ?code WHERE {
-  ?annotation goann:withFrom UniProtKB:P04637 ;
+  ?annotation lego:evidence-with UniProtKB:P04637 ;
               a goann:Annotation ;
-              goann:evidenceCode ?code ;
+              obo:RO_0002558 ?eco ;
               rdf:reifies <<( ?gp ?relation ?term )>> .
+  ?eco obo:ECO_9000002 ?code .
 }

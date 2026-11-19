@@ -4,6 +4,8 @@ SHELL := /bin/bash
 
 # Everything for one GO release lives under $(WORK):
 #   input/gpad/SPECIES-uniprot.gpad.gz   input/gpi/SPECIES-uniprot.gpi.gz
+#   input/metadata/groups.ttl, db-xrefs.json   (GO's, from the same release)
+#   input/eco.obo                         (ECO, current when first downloaded)
 #   rdf/SPECIES.nt.gz  rdf/SPECIES.report.tsv  rdf/vocab.ttl
 #   report.tsv                            counters summed over all species
 DATA_ROOT ?= data
@@ -19,7 +21,9 @@ $(error could not read the current GO release from $(RELEASE_URL); pass RELEASE=
 endif
 
 GO_RELEASE_URL ?= https://release.geneontology.org/$(RELEASE)
+ECO_URL ?= http://purl.obolibrary.org/obo/eco.obo
 WORK := $(DATA_ROOT)/$(RELEASE)
+METADATA := $(WORK)/input/metadata/groups.ttl $(WORK)/input/metadata/db-xrefs.json $(WORK)/input/eco.obo
 SPECIES_LIST := $(WORK)/species.txt
 
 SCALA_CLI ?= scala-cli
@@ -77,11 +81,27 @@ $(WORK)/input/gpi/%-uniprot.gpi.gz:
 	$(CURL) -o "$@.part" "$(GO_RELEASE_URL)/annotations/gpi/$*-uniprot.gpi.gz"
 	mv "$@.part" "$@"
 
-$(WORK)/rdf/%.nt.gz: $(WORK)/input/gpad/%-uniprot.gpad.gz $(WORK)/input/gpi/%-uniprot.gpi.gz prefixes.tsv $(JAR)
+# GO's group and database metadata come from the release itself.
+$(WORK)/input/metadata/%:
+	@mkdir -p "$(dir $@)"
+	$(CURL) -o "$@.part" "$(GO_RELEASE_URL)/metadata/$*"
+	mv "$@.part" "$@"
+
+# ECO is not part of a GO release: the first download is kept for the release's
+# later conversions, and its data-version is recorded in the graph.
+$(WORK)/input/eco.obo:
+	@mkdir -p "$(dir $@)"
+	$(CURL) -o "$@.part" "$(ECO_URL)"
+	mv "$@.part" "$@"
+
+$(WORK)/rdf/%.nt.gz: $(WORK)/input/gpad/%-uniprot.gpad.gz $(WORK)/input/gpi/%-uniprot.gpi.gz $(METADATA) prefixes.tsv $(JAR)
 	@mkdir -p "$(dir $@)"
 	java $(JAVA_OPTS) -jar "$(JAR)" --prefixes prefixes.tsv --species "$*" \
 	  --gpad "$(word 1,$^)" --gpad-source "$(GO_RELEASE_URL)/annotations/gpad/$*-uniprot.gpad.gz" \
 	  --gpi "$(word 2,$^)" --gpi-source "$(GO_RELEASE_URL)/annotations/gpi/$*-uniprot.gpi.gz" \
+	  --groups "$(WORK)/input/metadata/groups.ttl" --groups-source "$(GO_RELEASE_URL)/metadata/groups.ttl" \
+	  --db-xrefs "$(WORK)/input/metadata/db-xrefs.json" --db-xrefs-source "$(GO_RELEASE_URL)/metadata/db-xrefs.json" \
+	  --eco "$(WORK)/input/eco.obo" --eco-source "$(ECO_URL)" \
 	  --report "$(WORK)/rdf/$*.report.tsv" --output "$@"
 
 $(WORK)/rdf/vocab.ttl: vocab/goann.ttl
@@ -93,7 +113,7 @@ convert:
 	$(MAKE) --no-print-directory "$(WORK)/rdf/$(SPECIES).nt.gz"
 
 # Two steps, so that Make knows the species before it plans the conversions.
-convert-all: $(SPECIES_LIST) $(JAR)
+convert-all: $(SPECIES_LIST) $(JAR) $(METADATA)
 	$(MAKE) --no-print-directory RELEASE=$(RELEASE) \
 	  $$(sed 's|.*|$(WORK)/rdf/&.nt.gz|' "$(SPECIES_LIST)") "$(WORK)/rdf/vocab.ttl"
 

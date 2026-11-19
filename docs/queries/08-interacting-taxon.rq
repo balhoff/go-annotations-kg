@@ -1,0 +1,16 @@
+# Human proteins in defense against Staphylococcus aureus (NCBITaxon:1280).
+# GPAD's interacting taxon is a has input (RO:0002233) restriction in the
+# annotation's extension classes, as GO-CAM writes it.
+PREFIX obo: <http://purl.obolibrary.org/obo/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+
+SELECT DISTINCT ?gp ?symbol ?term WHERE {
+  ?annotation a goann:Annotation ;
+              rdf:reifies <<( ?gp ?relation ?term )>> ;
+              goann:extension/rdfs:subClassOf [ owl:onProperty obo:RO_0002233 ; owl:someValuesFrom obo:NCBITaxon_1280 ] .
+  ?gp obo:RO_0002162 obo:NCBITaxon_9606 ;
+      rdfs:label ?symbol .
+}

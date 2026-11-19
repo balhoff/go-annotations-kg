@@ -1,6 +1,7 @@
 # GO annotations of one protein, with evidence, leaving out IEA.
 # SPARQL 1.2: the {| |} block matches the reifiers of the asserted triple.
 # A triple can also have NOT annotations, so ask for goann:Annotation.
+# The GO evidence code is on the ECO class (ECO:9000002, ECO's "has GO evidence code").
 PREFIX obo: <http://purl.obolibrary.org/obo/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
@@ -9,9 +10,9 @@ PREFIX UniProtKB: <http://purl.uniprot.org/uniprot/>
 SELECT ?relation ?term ?code ?eco ?reference WHERE {
   UniProtKB:P04637 ?relation ?term {|
     a goann:Annotation ;
-    goann:evidenceCode ?code ;
     obo:RO_0002558 ?eco ;
     dcterms:source ?reference
-  |}
+  |} .
+  ?eco obo:ECO_9000002 ?code .
   FILTER(?code != "IEA")
 }

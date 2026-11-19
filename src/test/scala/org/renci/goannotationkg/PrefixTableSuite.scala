@@ -71,6 +71,44 @@ class PrefixTableSuite extends FunSuite:
     intercept[ConversionException](PrefixTable.fromRows(base :+ ("A", "http://x/", "lowercase")))
     intercept[ConversionException](PrefixTable.fromRows(base.take(2)))
 
+  test("strips listed text from the start of a local part, through aliases"):
+    val withStrip = PrefixTable.fromRows(
+      Seq(
+        ("UniProtKB", "http://purl.uniprot.org/uniprot/", "-"),
+        ("UniProtKB.isoform", "http://purl.uniprot.org/isoforms/", "-"),
+        ("UniProtKB.chain", "http://purl.uniprot.org/annotation/", "-"),
+        ("NCBITaxon", "http://purl.obolibrary.org/obo/NCBITaxon_", "strip=taxon:"),
+        ("taxon", "=NCBITaxon", "-"),
+      )
+    )
+    val aureus = Expansion.Iri("http://purl.obolibrary.org/obo/NCBITaxon_1280")
+    assertEquals(withStrip.expand("NCBITaxon:taxon:1280"), aureus)
+    assertEquals(withStrip.expand("NCBITaxon:1280"), aureus)
+    assertEquals(withStrip.expand("taxon:1280"), aureus)
+    intercept[ConversionException](
+      PrefixTable.fromRows(
+        Seq(
+          ("UniProtKB", "http://purl.uniprot.org/uniprot/", "-"),
+          ("UniProtKB.isoform", "http://purl.uniprot.org/isoforms/", "-"),
+          ("UniProtKB.chain", "http://purl.uniprot.org/annotation/", "-"),
+          ("A", "http://x/", "strip="),
+        )
+      )
+    )
+
+  test("refuses a ':' left in the local part under an OBO-style base"):
+    val obo = PrefixTable.fromRows(
+      Seq(
+        ("UniProtKB", "http://purl.uniprot.org/uniprot/", "-"),
+        ("UniProtKB.isoform", "http://purl.uniprot.org/isoforms/", "-"),
+        ("UniProtKB.chain", "http://purl.uniprot.org/annotation/", "-"),
+        ("NCBITaxon", "http://purl.obolibrary.org/obo/NCBITaxon_", "-"),
+        ("DOI", "https://doi.org/", "-"),
+      )
+    )
+    assert(obo.expand("NCBITaxon:taxon:1280").isInstanceOf[Expansion.Invalid])
+    assertEquals(obo.expand("DOI:10.1000/a:b"), Expansion.Iri("https://doi.org/10.1000/a:b"))
+
   test("the shipped prefix table loads"):
     val shipped = PrefixTable.load(Path.of("prefixes.tsv"))
     assertEquals(shipped.expand("GO:0005515"), Expansion.Iri("http://purl.obolibrary.org/obo/GO_0005515"))

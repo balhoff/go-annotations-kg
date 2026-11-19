@@ -17,6 +17,8 @@ SPARQL 1.2 queries.
    graph, so this can be the canonical source of GO annotations in the OKN.
 4. **Joins with the rest of the OKN.** Identifiers are written the way Babel, ROBOKOP
    and prokn write them.
+5. **Existing vocabulary first.** A property GO, OBO or the data's source already
+   uses is reused; `goann:` holds only what nothing existing covers.
 
 ## Sources
 
@@ -24,14 +26,21 @@ Each GO release publishes one GPAD 2.0 and one GPI 2.0 file per species, under
 `https://release.geneontology.org/{date}/annotations/`. Only the `*-uniprot` pairs are
 converted: 172 species in release 2026-08-05. The 21 `*-mod.gpad.gz` files repeat the
 same annotations keyed to MOD gene identifiers. MOD gene identifiers still reach the
-graph, as cross-references from the GPI (`goann:xref`).
+graph, as GPI cross-references (`rdfs:seeAlso`).
+
+Three metadata files are read alongside:
+
+- GO's `groups.ttl` and `db-xrefs.json`, from the same release, for the groups that
+  assign annotations;
+- ECO's `eco.obo`, for the GO evidence code of each ECO class. ECO is not part of a
+  GO release, so its `data-version` is recorded in the graph.
 
 ## The shape
 
 Each GPAD line becomes an **annotation node** that reifies the triple it is about:
 the triple it supports, or for a `NOT` line the triple it denies. The triple itself is
-asserted once, however many positive lines support it. In Turtle 1.2,
-for two real lines from `HUMAN-uniprot.gpad.gz`:
+asserted once, however many positive lines support it. In Turtle 1.2, for two real
+lines from `HUMAN-uniprot.gpad.gz`:
 
 ```turtle
 PREFIX GO: <http://purl.obolibrary.org/obo/GO_>
@@ -41,31 +50,41 @@ PREFIX GO_REF: <http://purl.obolibrary.org/obo/go/references/>
 PREFIX UniProtKB: <http://purl.uniprot.org/uniprot/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
+PREFIX lego: <http://geneontology.org/lego/>
+PREFIX pav: <http://purl.org/pav/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 UniProtKB:A0A024RBG1 RO:0002327 GO:0008486          # enables diphosphoinositol-polyphosphate diphosphatase activity
   {| a goann:Annotation ;                            # GPAD line: ... GO_REF:0000003  ECO:0000501  EC:3.6.1.52 ...
      RO:0002558 ECO:0000501 ;                        #   has evidence
-     goann:evidenceCode "IEA" ;
      dcterms:source GO_REF:0000003 ;
-     goann:withFrom <http://www.enzyme-database.org/query.php?ec=3.6.1.52> ;
+     lego:evidence-with <http://www.enzyme-database.org/query.php?ec=3.6.1.52> ;
      dcterms:date "2026-07-27"^^xsd:date ;
-     goann:assignedBy "UniProt" ;
+     pav:providedBy <https://www.uniprot.org> ;
      dcterms:identifier "GOA:7017011106" |}
   {| a goann:Annotation ;                            # GPAD line: ... GO_REF:0000024  ECO:0000250  UniProtKB:Q9NZJ9 ...
      RO:0002558 ECO:0000250 ;
-     goann:evidenceCode "ISS" ;
      dcterms:source GO_REF:0000024 ;
-     goann:withFrom UniProtKB:Q9NZJ9 ;
+     lego:evidence-with UniProtKB:Q9NZJ9 ;
      dcterms:date "2024-07-03"^^xsd:date ;
-     goann:assignedBy "UniProt" ;
+     pav:providedBy <https://www.uniprot.org> ;
      dcterms:contributor <https://orcid.org/0000-0002-2979-8613> ;
      dcterms:identifier "GOA:2114745301" |} .
+
+ECO:0000501 ECO:9000002 "IEA" .                      # ECO's "has GO evidence code"
+ECO:0000250 ECO:9000002 "ISS" .
+<https://www.uniprot.org> rdfs:label "UniProt" .     # the group, labelled with its GPAD abbreviation
 ```
 
 `{| … |}` is Turtle 1.2's annotation syntax. Each block is a blank node `_:r` with
 `_:r rdf:reifies <<( UniProtKB:A0A024RBG1 RO:0002327 GO:0008486 )>>` plus the
 properties inside it. That is exactly what the converter writes, in N-Triples 1.2.
+
+The GO evidence code is not repeated on each annotation. It is ECO's to give, on the
+ECO class (`ECO:9000002`), so "no IEA" is `?a RO:0002558 ?eco . ?eco ECO:9000002 ?code`
+with `FILTER(?code != "IEA")`. The ECO triples for every class a file uses are written
+with it.
 
 ### NOT annotations
 
@@ -78,10 +97,9 @@ the proposition rather than supports it. Turtle 1.2's reified-triple syntax writ
 << UniProtKB:A0A087X1C5 RO:0002327 GO:0070330 >>    # reified, not asserted
    a goann:NegatedAnnotation ;
    RO:0002558 ECO:0000314 ;
-   goann:evidenceCode "IDA" ;
    dcterms:source <http://www.ncbi.nlm.nih.gov/pubmed/18838503> ;
    dcterms:date "2015-01-23"^^xsd:date ;
-   goann:assignedBy "UniProt" .
+   pav:providedBy <https://www.uniprot.org> .
 ```
 
 This is how RDF 1.2 intends disputed and false claims to be written:
@@ -114,7 +132,9 @@ query in [`queries/`](queries/) does. It matters for triples that have both kind
 line. In release 2026-08-05, 1,214 triples have both (1,324 `NOT` lines). Each is
 asserted, because a positive line states it, so `?gp ?rel ?term {| … |}` on it
 returns both kinds. The other 7,521 `NOT`-annotated triples are never asserted, so
-that pattern cannot reach them; `<< ?gp ?rel ?term ~ ?a >>` can.
+that pattern cannot reach them; `<< ?gp ?rel ?term ~ ?a >>` can. A query over `NOT`
+annotations should start from the type, which is selective, and join on the whole
+triple term (query 05).
 
 ### Annotation extensions
 
@@ -124,7 +144,7 @@ input*. Each `|`-separated conjunction becomes an anonymous class. Its
 `rdfs:subClassOf` values are OWL existential restrictions:
 
 ```turtle
-UniProtKB:P12345 RO:0002327 GO:0004674
+UniProtKB:P12345 RO:0002327 GO:0004674               # an illustration, not a real line
   {| …
      goann:extension [
        rdfs:subClassOf [ owl:onProperty BFO:0000066 ; owl:someValuesFrom GO:0005634 ] ,
@@ -135,18 +155,64 @@ The annotated class is the GO term intersected with that class. Several
 `goann:extension` values are independent of each other, as GO defines `|`: each
 could have been its own GPAD line.
 
-The obvious alternative is the relation as a predicate (`[] BFO:0000066 GO:0005634`).
-It was rejected because extensions reuse the annotation relations. `BFO:0000050`
-(part of) is both the relation of 668k complex annotations and a common extension
-relation. As predicates, `?x BFO:0000050 GO:0030426` would return extension nodes
-mixed in with gene products. With restrictions, this invariant holds:
+The obvious alternative is the relation as a predicate, `[] BFO:0000066 GO:0005634`.
+That is ubergraph's convention for existential edges, it is about half the size, and
+queries are one hop shorter. It was rejected because extensions reuse one annotation
+relation, `BFO:0000050` (*part of*):
+- *part of* is the relation of 668k complex annotations;
+- it is also 72,292 of the 235,747 extension elements (31%).
+
+As predicates, `?x BFO:0000050 ?cc` would return extension nodes mixed in with gene
+products, and *part of*'s counts would merge. With restrictions, this invariant
+holds:
 
 > **The 13 gene product → GO term relations occur as predicates only in asserted,
 > positively annotated gene product → GO term triples.**
 
-Malformed extension elements are dropped and counted. In 2026-08-05 there are 34, all
-`has_regulation_target(...)`, which uses a label where an RO id belongs. Dropping one
-element of a conjunction leaves a weaker statement that is still true.
+Malformed extension elements are dropped and counted. Dropping one element of a
+conjunction leaves a weaker statement that is still true. An element's relation must
+be a numeric OBO id: labels and composed names would otherwise expand to IRIs that
+name nothing. In 2026-08-05 there are 102 malformed elements:
+
+| Element | Count |
+|---|---:|
+| `RO:0002211_transport_of(...)` | 67 |
+| `has_regulation_target(...)` | 25 |
+| `occurs_at(...)` | 9 |
+| `RO:0002211_o_RO:0002565(...)`, a property chain | 1 |
+
+Dropping them empties 40 conjunctions.
+
+#### Interacting taxon
+
+Column 8, the taxon of another organism involved, narrows the GO term in the same
+way, so it is written as an extension. It becomes a `has input` (`RO:0002233`)
+restriction to the NCBITaxon class in every conjunction of the line, or a conjunction
+of its own when the line has none. Two precedents:
+
+- **GO-CAM writes it this way.** Minerva's GPAD export reads a `has input` edge to an
+  NCBITaxon class back as column 8.
+- **GO's own logical definitions agree.** Most of the 2,241 lines are host
+  defense terms; GO defines *defense response to bacterium* (GO:0042742) as
+  *defense response* and `has_primary_input` some `NCBITaxon:2`.
+  `has_primary_input` (RO:0004009) is a subproperty of `has input`. So
+  GO:0050830 with taxon 1280 means *defense response to Staphylococcus aureus*.
+
+```turtle
+# GPAD: UniProtKB:O15263  RO:0002331  GO:0050830  PMID:15625724  ECO:0000314  NCBITaxon:taxon:1280
+UniProtKB:O15263 RO:0002331 GO:0050830               # DEFB4A involved in defense response to Gram-positive bacterium
+  {| a goann:Annotation ;
+     goann:extension [ rdfs:subClassOf [ owl:onProperty RO:0002233 ; owl:someValuesFrom NCBITaxon:1280 ] ] ;
+     … |} .
+```
+
+Several interacting taxa, like several conjunctions, are independent. Each gives its
+own copy of each conjunction. A column-8 taxon is now indistinguishable from an
+explicit `has input`(NCBITaxon) extension, which GO treats as the same thing. No
+extension in 2026-08-05 targets a taxon.
+
+GOA currently writes every interacting taxon as `NCBITaxon:taxon:N`, a bug in its
+pipeline that is due to be fixed. The prefix table's `strip=taxon:` rule undoes it.
 
 ### Gene products
 
@@ -156,17 +222,34 @@ uniprot GPIs list 5.2M entities, of which 1.9M are annotated.
 ```turtle
 UniProtKB:A0A024RBG1 a PR:000000001 ;                   # protein (GPI column 5)
   rdfs:label "NUDT4B" ;                                  # symbol
-  goann:fullName "Diphosphoinositol polyphosphate phosphohydrolase NUDT4B" ;
+  oboInOwl:hasExactSynonym "Diphosphoinositol polyphosphate phosphohydrolase NUDT4B" ;
   RO:0002162 NCBITaxon:9606 ;                            # in taxon
-  goann:dbSubset "Swiss-Prot" ;
-  goann:xref HGNC:18012 , ENSEMBL:ENSG00000173598 , ENSEMBL:ENSG00000177144 ,
-             <http://identifiers.org/refseq/NP_001342336.1> , <http://identifiers.org/insdc/AC245389> .
+  up:reviewed true ;                                     # Swiss-Prot
+  rdfs:seeAlso HGNC:18012 , ENSEMBL:ENSG00000173598 , ENSEMBL:ENSG00000177144 ,
+               <http://identifiers.org/refseq/NP_001342336.1> , <http://identifiers.org/insdc/AC245389> .
 ```
 
 When the GPI lacks an annotated object (107k in 2026-08-05, nearly all RNAcentral),
 the converter writes what the identifier itself gives. An RNAcentral id ends in its
 taxon (`URS000000768F_575584`). An isoform or chain id names its parent accession,
 which gives `goann:canonicalObject` and the parent's taxon.
+
+### Groups
+
+`pav:providedBy` gives the IRI GO's `groups.ttl` assigns the group, as GO-CAM does.
+Each group used is written with its GPAD abbreviation as `rdfs:label`, and its longer
+name, where different, as `oboInOwl:hasExactSynonym`. For example, `http://geneontology.org`
+has the label "GO_Central" and the synonym "GO Central".
+
+Some assigners are missing from `groups.ttl`:
+
+- the four Ensembl divisions, CollecTF and PHI-base use their homepage from
+  `db-xrefs.json`;
+- GDB, MENGO, Others and SYSCILIA_CCNET have neither, so `pav:providedBy` is their
+  abbreviation as a literal: 8,136 lines in 2026-08-05.
+
+The report counts these under `unresolved.assigned-by`. They want `groups.yaml`
+entries upstream.
 
 ## Column by column
 
@@ -179,35 +262,86 @@ which gives `goann:canonicalObject` and the parent's taxon.
 | 3 Relation | predicate of the triple (term) |
 | 4 Ontology_Class_ID | object of the triple (term) |
 | 5 Reference | `dcterms:source` |
-| 6 Evidence_Type | `RO:0002558` (has evidence) → ECO class |
-| 7 With_Or_From | `goann:withFrom` for every id; `goann:withFromGroup [ rdfs:member … ]` for each `,` group |
-| 8 Interacting_Taxon_ID | `goann:interactingTaxon` |
+| 6 Evidence_Type | `RO:0002558` (has evidence) → ECO class, which carries `ECO:9000002` (has GO evidence code) |
+| 7 With_Or_From | `lego:evidence-with` for every id; `goann:withFromGroup [ rdfs:member … ]` for each `,` group |
+| 8 Interacting_Taxon_ID | a `RO:0002233` (has input) restriction in each `goann:extension` class |
 | 9 Annotation_Date | `dcterms:date` (`xsd:date` or `xsd:dateTime`) |
-| 10 Assigned_By | `goann:assignedBy` (literal: GO's group abbreviation) |
+| 10 Assigned_By | `pav:providedBy` → the group's IRI, labelled with the abbreviation |
 | 11 Annotation_Extensions | `goann:extension`, as above |
 | 12 `id=` | `dcterms:identifier` (literal) |
-| 12 `comment=go_evidence:XXX` | `goann:evidenceCode "XXX"` |
+| 12 `comment=go_evidence:XXX` | not written: ECO gives the code (see below) |
 | 12 `comment=` other | `rdfs:comment` |
 | 12 `contributor-id=` | `dcterms:contributor` (ORCID IRI) |
-| 12 `reviewer-id=` | `goann:reviewer` |
-| 12 `creation-date=` / `modification-date=` / `reviewed-date=` | `dcterms:created` / `dcterms:modified` / `goann:reviewed` |
-| 12 `noctua-model-id=` / `model-state=` | `goann:gocamModel` (GO-CAM model IRI) / `goann:modelState` |
-| header | a `goann:SourceFile` node: `goann:formatVersion`, `dcterms:creator`, `dcterms:created`, `goann:goVersion` |
+| 12 `reviewer-id=` / `reviewed-date=` | `pav:curatedBy` / `pav:curatedOn` |
+| 12 `creation-date=` / `modification-date=` | `dcterms:created` / `dcterms:modified` |
+| 12 `noctua-model-id=` | `prov:wasDerivedFrom` → the GO-CAM model |
+| 12 `model-state=` | `lego:modelstate` on the model, once |
+| header | a `goann:SourceFile` node: `dcterms:conformsTo` the GPAD/GPI 2.0 spec, `dcterms:creator`, `dcterms:created`, `goann:goVersion` |
+
+GPAD's `go_evidence:` code agrees with ECO's for 15,454,954 of the release's
+15,454,965 lines. The other 11 say `go_evidence:NO_MAPPING`, GOA's marker for an ECO
+class with no GO code:
+
+- 9 agree with ECO, which gives those classes no code either;
+- 2 are on ECO:0007090, which ECO maps to ISS.
+
+The report counts these under `evidence-code.no-mapping` and
+`dropped.evidence-code.not-ecos`.
 
 ### GPI 2.0
 
 | Column | Becomes |
 |---|---|
 | 2 DB_Object_Symbol | `rdfs:label` (the name when there is no symbol, as for RNAcentral) |
-| 3 DB_Object_Name | `goann:fullName` |
-| 4 DB_Object_Synonyms | `skos:altLabel`, without the symbol and name themselves |
+| 3 DB_Object_Name | `oboInOwl:hasExactSynonym` |
+| 4 DB_Object_Synonyms | `oboInOwl:hasRelatedSynonym`, without the symbol and name themselves |
 | 5 DB_Object_Type | `rdf:type` (PR, SO or GO class) |
 | 6 DB_Object_Taxon | `RO:0002162` (in taxon) |
 | 7 Encoded_By | `RO:0002204` (gene product of) |
 | 8 Canonical_Object_ID | `goann:canonicalObject`, when it is not the entity itself |
 | 9 Protein_Containing_Complex_Members | `RO:0002180` (has component) |
-| 10 DB_Xrefs | `goann:xref` |
-| 11 `db_subset=` | `goann:dbSubset` |
+| 10 DB_Xrefs | `rdfs:seeAlso` |
+| 11 `db_subset=` | `up:reviewed` (`true` for Swiss-Prot, `false` for TrEMBL) |
+
+## Vocabulary: what is reused, and why
+
+Only seven terms are the KG's own: `goann:Annotation`, `goann:NegatedAnnotation`,
+`goann:SourceFile`, `goann:extension`, `goann:withFromGroup`, `goann:canonicalObject`
+and `goann:goVersion`. For each, nothing existing fit:
+
+- OBAN is abandoned, and neither Biolink's Association nor GO-CAM's `owl:Axiom` is
+  closer;
+- GO-CAM keeps a `,` group as one literal string;
+- NEO drops the canonical id, and UniProt models isoforms as sequences.
+
+Everything else reuses a precedent, chosen in 2026-11 from Minerva (GO's GO-CAM →
+GPAD exporter, which names each GPAD column in RDF), RO, ECO, PAV, PROV and UniProt
+core:
+
+| Field | Term | Precedent |
+|---|---|---|
+| evidence | `RO:0002558` has evidence, to the ECO class | Biolink's `has_evidence` maps to it. RO defines it on evidence instances; GO-CAM makes an instance, and GPAD's class is used directly here, as the main triple already uses classes |
+| GO evidence code | `ECO:9000002` on the ECO class | ECO's own property; 1,422 ECO classes carry it |
+| with/from | `lego:evidence-with` | GO-CAM. There its values are CURIE strings; here they are IRIs |
+| assigned by | `pav:providedBy` → group IRI | GO-CAM, resolved through go-site's `groups` |
+| reviewer, review date | `pav:curatedBy`, `pav:curatedOn` | PAV's meaning, the vocabulary of `pav:providedBy` |
+| GO-CAM model | `prov:wasDerivedFrom` | Minerva uses PROV for derivation |
+| model state | `lego:modelstate`, on the model | GO-CAM |
+| interacting taxon | `RO:0002233` restriction | Minerva's GPAD export; GO's `has_primary_input` definitions |
+| name, synonyms | `oboInOwl:hasExactSynonym`, `oboInOwl:hasRelatedSynonym` | OBO convention: the name names the same entity; GPI synonyms include ORF names and other loci |
+| Swiss-Prot or TrEMBL | `up:reviewed` | UniProt core |
+| cross-references | `rdfs:seeAlso` | UniProt's own RDF, for exactly these cross-references |
+| format version | `dcterms:conformsTo` the spec | |
+
+**Why not `oboInOwl:hasDbXref` for cross-references.** By convention its value is a
+literal CURIE. KGF's key sets and overlap sketches are IRI-only, so literal xrefs
+would be invisible to the federation's join discovery. These xrefs (HGNC, MGI,
+Ensembl genes) are the bridge to gene-keyed graphs. The SKOS mapping properties were
+also considered and rejected: they claim that two concepts match, and these xrefs mix
+the same protein in another database, its gene, and OMIM entries.
+
+**`oboInOwl:shorthand` is not used for groups.** It exists for the OBO-to-OWL
+conversion; a plain `rdfs:label` carries the abbreviation.
 
 ## Decisions, and why
 
@@ -228,11 +362,7 @@ KGF bundle it is served under the bundle's stable blank-node wire name
 (`urn:fdc:frink-okn.github.io:…:bnode:…`). The GOA id is still kept, as
 `dcterms:identifier`, the one handle back to GOA.
 
-**Evidence twice.** The ECO class (`RO:0002558`) is precise, and its hierarchy is in
-ubergraph. The three-letter GO code (`goann:evidenceCode`) is what nearly every user
-filters on ("no IEA"), and it needs no join to get.
-
-**With/from flattened, groups kept.** `goann:withFrom` lists every identifier, so
+**With/from flattened, groups kept.** `lego:evidence-with` lists every identifier, so
 "which annotations cite Q9NZJ9" is one pattern. The 8,002 lines with `,`-groups
 (mostly IGI double mutants) also get a group node, so nothing is lost.
 
@@ -250,18 +380,22 @@ policy:
 - Sequence-record xrefs with no gene-level meaning (Gramene `GR`, `WGS`) are dropped
   on purpose.
 
-An identifier with an unlisted prefix is dropped and counted in the run's report, so
-a new prefix in a later release shows up there.
+A local part that still contains `:` under an OBO-style base (one ending in `_`) is
+refused rather than written, since it would make a well-formed but wrong IRI. An
+identifier with an unlisted prefix is dropped and counted in the run's report, so a
+new prefix in a later release shows up there.
 
-**No ontology content.** GO term labels and hierarchy, ECO and RO are in ubergraph,
-already in the OKN. Copying them would pin a second, possibly different, version. The
-bundle does label the relations it uses, in `vocab/goann.ttl`, so the graph reads
-on its own.
+**Ontology content: labels for what the graph uses, and ECO's GO codes.** GO term
+labels and hierarchy, ECO and RO are in ubergraph, already in the OKN; copying them
+would pin a second, possibly different, version. The bundle does label the
+relations and reused terms it uses, in `vocab/goann.ttl`, so the graph reads on its
+own. ECO's GO evidence codes are included for the ECO classes used, about 150
+triples, because "no IEA" is the most common filter on GO annotations.
 
 ## Size (release 2026-08-05)
 
 From `make convert-all` and `make report` over all 172 `*-uniprot` pairs. Run with
-`-j8` on a 12-core laptop, the conversion takes 83 seconds.
+`-j8` on a 12-core laptop, the conversion takes about 100 seconds.
 
 | | |
 |---|---:|
@@ -272,22 +406,22 @@ From `make convert-all` and `make report` over all 172 `*-uniprot` pairs. Run wi
 | triples with only NOT annotations, so never asserted | 7,521 |
 | gene products described from the GPI | 1,808,506 |
 | annotated objects missing from the GPI | 107,523 |
-| extension conjunctions | 170,961 |
-| triples written | 192,398,252 |
-| N-Triples 1.2 output, gzipped | 1.2 GB |
+| extension classes, interacting taxa included | 173,049 |
+| triples written | 176,453,967 |
+| N-Triples 1.2 output, gzipped | 1.1 GB |
 
 The asserted-triple count equals the number of distinct positive (object, relation,
 term) rows in the source, as checked in DuckDB. No GPAD line was dropped. The report
 counts what was dropped below the line level:
 
-- 34 extension elements (`has_regulation_target(...)`), which empties 31
-  conjunctions;
+- the 102 malformed extension elements above;
 - 3 with/from values with no prefix;
 - 10,060 GPI xrefs with no prefix;
-- 1.34M GPI xrefs dropped on purpose (`GR`, `WGS`, `MGII`).
+- 1.34M GPI xrefs dropped on purpose (`GR`, `WGS`, `MGII`);
+- the two evidence-code disagreements above.
 
-A KGF bundle of HUMAN alone has 9.84M triples and takes 151 MiB. It builds with
-`kgf` 0.6.0 and `hdtc` 1.3.2 in 22 seconds. In it:
+A KGF bundle of HUMAN alone has 8.89M triples and takes 143 MiB. It builds with
+`kgf` 0.6.0 and `hdtc` 1.3.2 in about 20 seconds. In it:
 
 - HUMAN's 1,497 NOT lines state 1,403 distinct triples. The 1,185 of them that no
   positive line asserts sit in `data.hdt.props.hdt`, the side file for unasserted
@@ -300,4 +434,4 @@ A KGF bundle of HUMAN alone has 9.84M triples and takes 151 MiB. It builds with
   (it has no `NOT` lines).
 
 All of these match the source rows. Scaled up, the whole release should make a
-bundle of about 3 GB.
+bundle of under 3 GB.

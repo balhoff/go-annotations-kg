@@ -45,17 +45,20 @@ make bundle KGF=/path/to/kgf HDTC=/path/to/hdtc
 ```
 
 `RELEASE` defaults to the current release, from
-`https://current.geneontology.org/metadata/release-date.json`. Everything is read
-from that release's pinned snapshot at `https://release.geneontology.org/RELEASE/`,
-and lands under `data/RELEASE/` (`DATA_ROOT` to move it). Pass `RELEASE=YYYY-MM-DD`
-to rebuild an older one. Downloads and conversions are per species and atomic, so an
+`https://current.geneontology.org/metadata/release-date.json`. The GPAD and GPI files,
+and GO's `groups.ttl` and `db-xrefs.json`, are read from that release's pinned
+snapshot at `https://release.geneontology.org/RELEASE/`. ECO's `eco.obo` comes from
+`ECO_URL`, the current ECO by default; its first download is kept for the release,
+and its version is recorded in the graph. Everything lands under `data/RELEASE/`
+(`DATA_ROOT` to move it). Pass `RELEASE=YYYY-MM-DD` to rebuild an older one. Downloads and conversions are per species and atomic, so an
 interrupted run picks up where it stopped. Try one species first with
 `make convert SPECIES=HUMAN`.
 
 `make report` sums every species' counters into `data/RELEASE/report.tsv`. Read its
 `dropped.*` lines after each release: a prefix GO starts using that
 `prefixes.tsv` does not list shows up there as `dropped.*.unknown-prefix.PREFIX`, with
-an example. Add the prefix to the table and convert again.
+an example. Add the prefix to the table and convert again. `unresolved.assigned-by.*`
+lines name assigners that GO's groups metadata lacks, which then appear as literals.
 
 The bundle lands in `data/bundles/go-annotations/RELEASE`. For release 2026-08-05,
 expect about 192M triples and a bundle of about 3 GB, so build on a machine with tens

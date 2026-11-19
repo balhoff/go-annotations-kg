@@ -49,6 +49,10 @@ class FormatsSuite extends FunSuite:
     assertEquals(Formats.parseExpression("RO:0002233(UniProtKB:Q00362)"), Some(RelationalExpression("RO:0002233", "UniProtKB:Q00362")))
     assertEquals(Formats.parseExpression("RO:0002233(UniProtKB:Q00362"), None)
     assertEquals(Formats.parseExpression("RO:0002233"), None)
+    // Relations must be numeric OBO ids: labels and composed names name nothing.
+    assertEquals(Formats.parseExpression("occurs_at(SO:0002205)"), None)
+    assertEquals(Formats.parseExpression("RO:0002211_transport_of(UniProtKB:P01130)"), None)
+    assertEquals(Formats.parseExpression("RO:0002211_o_RO:0002565(CL:0002618)"), None)
 
   test("accepts dates and date-times"):
     assert(Formats.isDateOrDateTime("2019-01-30"))

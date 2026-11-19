@@ -16,7 +16,14 @@ enum Expansion:
   /** Not a CURIE, or the expansion is not a valid IRI. */
   case Invalid(reason: String)
 
-final case class PrefixEntry(prefix: String, base: Option[String], stripVersion: Boolean)
+/** One resolved row: aliases are followed, and their rules merged into the target's. */
+final case class PrefixEntry(
+    prefix: String,
+    base: Option[String],
+    stripVersion: Boolean,
+    /** Literal text removed from the start of a local part, e.g. GAF's "taxon:". */
+    stripPrefixes: Seq[String] = Nil,
+)
 
 /** Expands GPAD/GPI CURIEs with the curated table in prefixes.tsv. */
 final class PrefixTable private (entries: Map[String, PrefixEntry]):
@@ -46,12 +53,18 @@ final class PrefixTable private (entries: Map[String, PrefixEntry]):
             .find(rawLocal.startsWith)
             .map(p => rawLocal.substring(p.length))
             .getOrElse(rawLocal)
+        val unprefixed =
+          entry.stripPrefixes.find(unbanana.startsWith).map(p => unbanana.substring(p.length)).getOrElse(unbanana)
         val local =
-          if entry.stripVersion then unbanana match
+          if entry.stripVersion then unprefixed match
             case version(unversioned) => unversioned
             case other => other
-          else unbanana
+          else unprefixed
         if local.isEmpty then Expansion.Invalid(s"empty local identifier in '$written:$rawLocal'")
+        // An OBO-style base ends in "_" and takes a bare local id; a ':' left in one
+        // ("NCBITaxon:taxon:1280") would make a well-formed but wrong IRI.
+        else if base.endsWith("_") && local.contains(':') then
+          Expansion.Invalid(s"unexpected ':' in the local part of '$written:$rawLocal'")
         else
           val iri =
             if entry.prefix == "UniProtKB" then
@@ -93,17 +106,22 @@ object PrefixTable:
       targets.get(prefix) match
         case None => throw ConversionException(s"$source: alias target '$prefix' is not listed")
         case Some((_, target, rules)) =>
-          val ruleSet = if rules == "-" || rules.isEmpty then Set.empty[String] else rules.split(",").map(_.trim).toSet
-          val unknownRules = ruleSet -- Set("strip_version")
-          if unknownRules.nonEmpty then
-            throw ConversionException(s"$source: unknown rules ${unknownRules.mkString(", ")} for '$prefix'")
+          val ruleList = if rules == "-" || rules.isEmpty then Seq.empty[String] else rules.split(",").map(_.trim).toSeq
+          val stripVersion = ruleList.contains("strip_version")
+          val stripPrefixes = ruleList.collect { case s"strip=$text" if text.nonEmpty => text }
+          val unknownRules = ruleList.filterNot(r => r == "strip_version" || r.startsWith("strip="))
+          if unknownRules.nonEmpty || ruleList.contains("strip=") then
+            throw ConversionException(s"$source: unknown rules ${(unknownRules ++ ruleList.filter(_ == "strip=")).mkString(", ")} for '$prefix'")
           if target.startsWith("=") then
             val aliased = resolve(target.drop(1), prefix :: seen)
-            aliased.copy(stripVersion = aliased.stripVersion || ruleSet("strip_version"))
+            aliased.copy(
+              stripVersion = aliased.stripVersion || stripVersion,
+              stripPrefixes = (stripPrefixes ++ aliased.stripPrefixes).distinct,
+            )
           else if target == "-" then PrefixEntry(prefix, None, stripVersion = false)
           else
             checkIri(target + "x") match
-              case Expansion.Iri(_) => PrefixEntry(prefix, Some(target), ruleSet("strip_version"))
+              case Expansion.Iri(_) => PrefixEntry(prefix, Some(target), stripVersion, stripPrefixes)
               case _ => throw ConversionException(s"$source: '$target' for '$prefix' is not an IRI base")
 
     val entries = rows.map(row => row._1 -> resolve(row._1, Nil)).toMap

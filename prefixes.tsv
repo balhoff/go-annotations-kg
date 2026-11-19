@@ -7,6 +7,7 @@
 #           - to drop identifiers with this prefix on purpose (counted, not an error)
 #   rules   comma-separated local-part rules, or -:
 #           strip_version  remove a trailing .N version (Ensembl gene versions)
+#           strip=TEXT     remove TEXT from the start of the local part
 #   basis   where the target comes from
 #
 # Policy: use the Biolink Model prefix map (commit bec6cc5b, the one babel-rdf
@@ -17,7 +18,8 @@
 #
 # Every local part that repeats its own prefix ("MGI:MGI:97486",
 # "HGNC:HGNC:5") is shortened first ("MGI:97486"), as Biolink and Babel
-# write those CURIEs. UniProtKB isoforms (P12345-2) go to UniProtKB.isoform
+# write those CURIEs. A local part left with a ':' under an OBO-style base
+# (one ending in "_") is refused rather than written. UniProtKB isoforms (P12345-2) go to UniProtKB.isoform
 # and processed chains (P12345-PRO_0000012345) to UniProtKB.chain.
 prefix	target	rules	basis
 UniProtKB	http://purl.uniprot.org/uniprot/	-	biolink UniProtKB
@@ -31,7 +33,7 @@ RO	http://purl.obolibrary.org/obo/RO_	-	biolink RO
 BFO	http://purl.obolibrary.org/obo/BFO_	-	biolink BFO
 GOREL	http://purl.obolibrary.org/obo/GOREL_	-	biolink GOREL
 ECO	http://purl.obolibrary.org/obo/ECO_	-	biolink ECO
-NCBITaxon	http://purl.obolibrary.org/obo/NCBITaxon_	-	biolink NCBITaxon
+NCBITaxon	http://purl.obolibrary.org/obo/NCBITaxon_	strip=taxon:	biolink NCBITaxon. strip= undoes GOA writing interacting taxa as NCBITaxon:taxon:N, a GOA bug due to be fixed
 SO	http://purl.obolibrary.org/obo/SO_	-	biolink SO
 PR	http://purl.obolibrary.org/obo/PR_	-	biolink PR
 CHEBI	http://purl.obolibrary.org/obo/CHEBI_	-	biolink CHEBI

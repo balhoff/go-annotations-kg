@@ -7,8 +7,9 @@ PREFIX goann: <https://w3id.org/go-annotation-kg/vocab/>
 
 SELECT ?gp ?relation ?term ?code ?reference WHERE {
   << ?gp ?relation ?term ~ ?annotation >> a goann:NegatedAnnotation ;
-      goann:evidenceCode ?code ;
+      obo:RO_0002558 ?eco ;
       dcterms:source ?reference .
+  ?eco obo:ECO_9000002 ?code .
   ?gp obo:RO_0002162 obo:NCBITaxon_9606 .
 }
 LIMIT 100

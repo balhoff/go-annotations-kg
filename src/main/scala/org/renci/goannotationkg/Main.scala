@@ -15,6 +15,12 @@ final case class Config(
     species: Option[String] = None,
     gpadSource: Option[String] = None,
     gpiSource: Option[String] = None,
+    groups: Option[String] = None,
+    groupsSource: Option[String] = None,
+    dbXrefs: Option[String] = None,
+    dbXrefsSource: Option[String] = None,
+    eco: Option[String] = None,
+    ecoSource: Option[String] = None,
     output: String = "-",
     report: Option[String] = None,
     strict: Boolean = false,
@@ -56,6 +62,30 @@ object Main:
         .valueName("<IRI>")
         .action((value, config) => config.copy(gpiSource = Some(value)))
         .text("IRI of the published GPI file, for its provenance node"),
+      opt[String]("groups")
+        .valueName("<groups.ttl>")
+        .action((value, config) => config.copy(groups = Some(value)))
+        .text("GO's groups.ttl, to give each Assigned_By value its group IRI"),
+      opt[String]("groups-source")
+        .valueName("<IRI>")
+        .action((value, config) => config.copy(groupsSource = Some(value)))
+        .text("IRI of the published groups.ttl, for its provenance node"),
+      opt[String]("db-xrefs")
+        .valueName("<db-xrefs.json>")
+        .action((value, config) => config.copy(dbXrefs = Some(value)))
+        .text("GO's db-xrefs.json, whose homepages stand in for groups groups.ttl lacks"),
+      opt[String]("db-xrefs-source")
+        .valueName("<IRI>")
+        .action((value, config) => config.copy(dbXrefsSource = Some(value)))
+        .text("IRI of the published db-xrefs.json, for its provenance node"),
+      opt[String]("eco")
+        .valueName("<eco.obo>")
+        .action((value, config) => config.copy(eco = Some(value)))
+        .text("ECO in OBO format, for the GO evidence code of each ECO class (ECO:9000002)"),
+      opt[String]("eco-source")
+        .valueName("<IRI>")
+        .action((value, config) => config.copy(ecoSource = Some(value)))
+        .text("IRI of the ECO file, for its provenance node"),
       opt[String]('o', "output")
         .valueName("<output.nt[.gz]>")
         .action((value, config) => config.copy(output = value))
@@ -89,21 +119,30 @@ object Main:
   def run(config: Config): Stats =
     val prefixes = PrefixTable.load(Path.of(config.prefixes))
     val species = config.species.getOrElse(Path.of(config.gpad).getFileName.toString.takeWhile(_ != '-'))
-    val inputs = Seq(config.gpad) ++ config.gpi ++ Seq(config.prefixes)
+    val inputs = Seq(config.gpad) ++ config.gpi ++ config.groups ++ config.dbXrefs ++ config.eco ++ Seq(config.prefixes)
     if config.output != "-" && inputs.exists(i => Path.of(i).toAbsolutePath.normalize() == Path.of(config.output).toAbsolutePath.normalize()) then
       throw ConversionException(s"output '${config.output}' must not be an input file")
+
+    val groups = ReleaseMetadata.loadGroups(config.groups.map(Path.of(_)), config.dbXrefs.map(Path.of(_)))
+    val (ecoCodes, ecoVersion) = config.eco.map(e => ReleaseMetadata.loadEco(Path.of(e))).getOrElse((Map.empty, None))
+    val metadata = ReleaseMetadata(groups, ecoCodes, ecoVersion)
+    val metadataSources =
+      config.groupsSource.map(MetadataSource(_)).toSeq ++
+        config.dbXrefsSource.map(MetadataSource(_)) ++
+        config.ecoSource.map(MetadataSource(_, ecoVersion))
 
     val output = Io.openOutput(config.output)
     val gpad = Io.openInput(config.gpad)
     val gpi = config.gpi.map(Io.openInput)
     val rdf = StreamRDFWriter.getWriterStream(output.stream, RDFFormat.NTRIPLES_UTF8)
-    val converter = new Converter(prefixes, rdf, Stats())
+    val converter = new Converter(prefixes, rdf, Stats(), metadata)
     try
       rdf.start()
       converter.convert(
         species,
         Source(gpad.stream, config.gpadSource),
         gpi.map(handle => Source(handle.stream, config.gpiSource)),
+        metadataSources,
       )
       rdf.finish()
       val stats = converter.stats

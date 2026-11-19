@@ -25,6 +25,11 @@ semantics:
     RNAcentral: "http://identifiers.org/rnacentral/"
     ComplexPortal: "https://www.ebi.ac.uk/complexportal/complex/"
     PMID: "http://www.ncbi.nlm.nih.gov/pubmed/"
+    lego: "http://geneontology.org/lego/"
+    pav: "http://purl.org/pav/"
+    prov: "http://www.w3.org/ns/prov#"
+    oboInOwl: "http://www.geneontology.org/formats/oboInOwl#"
+    up: "http://purl.uniprot.org/core/"
     dcterms: "http://purl.org/dc/terms/"
   authoritative_namespaces:
     - goann
@@ -32,5 +37,5 @@ semantics:
     label:
       - "http://www.w3.org/2000/01/rdf-schema#label"
     synonym:
-      - "http://www.w3.org/2004/02/skos/core#altLabel"
-      - "https://w3id.org/go-annotation-kg/vocab/fullName"
+      - "http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"
+      - "http://www.geneontology.org/formats/oboInOwl#hasRelatedSynonym"

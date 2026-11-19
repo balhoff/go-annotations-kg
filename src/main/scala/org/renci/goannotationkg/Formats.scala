@@ -78,11 +78,14 @@ final class TabularReader(input: InputStream):
 object Formats:
   private val datePattern = """\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?""".r
   private val expressionPattern = """([^()\s]+)\(([^()\s]+)\)""".r
+  // Extension relations are RO/BFO-style numeric ids. Labels ("occurs_at") and composed
+  // names ("RO:0002211_transport_of") would otherwise expand to IRIs that name nothing.
+  private val relationId = """[A-Za-z]+:[0-9]+""".r
 
   def isDateOrDateTime(value: String): Boolean = datePattern.matches(value)
 
   def parseExpression(value: String): Option[RelationalExpression] = value match
-    case expressionPattern(relation, target) => Some(RelationalExpression(relation, target))
+    case expressionPattern(relation, target) if relationId.matches(relation) => Some(RelationalExpression(relation, target))
     case _ => None
 
   private def split(value: String, separator: Char): Vector[String] =
