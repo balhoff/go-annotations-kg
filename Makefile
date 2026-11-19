@@ -4,13 +4,17 @@ SHELL := /bin/bash
 
 # Everything for one GO release lives under $(WORK):
 #   input/gpad/SPECIES-uniprot.gpad.gz   input/gpi/SPECIES-uniprot.gpi.gz
-#   input/metadata/groups.ttl, db-xrefs.json   (GO's, from the same release)
-#   input/eco.obo                         (ECO, current when first downloaded)
+#   input/metadata/groups.ttl, db-xrefs.json, release-archive-doi.json
+#                                         (GO's, from the same release)
+#   input/eco.owl                         (ECO's OWL release, current when first downloaded)
 #   rdf/SPECIES.nt.gz  rdf/SPECIES.report.tsv  rdf/vocab.ttl
 #   report.tsv                            counters summed over all species
 DATA_ROOT ?= data
 BUNDLE_ROOT ?= $(DATA_ROOT)/bundles
 DATASET ?= go-annotations
+DATASET_IRI ?= https://purl.org/okn/frink/kg/$(DATASET)
+# Recorded in the graph with pav:createdWith; "-dirty" marks uncommitted changes.
+CONVERTER_VERSION := $(shell git describe --always --dirty 2>/dev/null || echo unknown)
 
 RELEASE_URL ?= https://current.geneontology.org/metadata/release-date.json
 ifndef RELEASE
@@ -21,9 +25,10 @@ $(error could not read the current GO release from $(RELEASE_URL); pass RELEASE=
 endif
 
 GO_RELEASE_URL ?= https://release.geneontology.org/$(RELEASE)
-ECO_URL ?= http://purl.obolibrary.org/obo/eco.obo
+ECO_URL ?= http://purl.obolibrary.org/obo/eco.owl
 WORK := $(DATA_ROOT)/$(RELEASE)
-METADATA := $(WORK)/input/metadata/groups.ttl $(WORK)/input/metadata/db-xrefs.json $(WORK)/input/eco.obo
+METADATA := $(WORK)/input/metadata/groups.ttl $(WORK)/input/metadata/db-xrefs.json \
+  $(WORK)/input/metadata/release-archive-doi.json $(WORK)/input/eco.owl
 SPECIES_LIST := $(WORK)/species.txt
 
 SCALA_CLI ?= scala-cli
@@ -44,7 +49,8 @@ help:
 	@echo 'make convert-all [-j N]       Download and convert every *-uniprot GPAD/GPI pair'
 	@echo 'make convert SPECIES=HUMAN    Download and convert one species'
 	@echo 'make report                   Sum the per-species counters into $(WORK)/report.tsv'
-	@echo 'make bundle                   Build the KGF bundle with kgf (needs kgf and hdtc)'
+	@echo 'make bundle [REPLACE=1]       Build the KGF bundle with kgf (needs kgf and hdtc);'
+	@echo '                              REPLACE=1 sets an existing bundle of this release aside'
 	@echo 'Override RELEASE, DATA_ROOT, BUNDLE_ROOT, KGF, HDTC or KGF_CONFIG as needed.'
 
 build: $(JAR)
@@ -88,8 +94,9 @@ $(WORK)/input/metadata/%:
 	mv "$@.part" "$@"
 
 # ECO is not part of a GO release: the first download is kept for the release's
-# later conversions, and its data-version is recorded in the graph.
-$(WORK)/input/eco.obo:
+# later conversions, and its owl:versionIRI is recorded in the graph. ECO's OWL
+# release is read, not OBO format.
+$(WORK)/input/eco.owl:
 	@mkdir -p "$(dir $@)"
 	$(CURL) -o "$@.part" "$(ECO_URL)"
 	mv "$@.part" "$@"
@@ -101,7 +108,9 @@ $(WORK)/rdf/%.nt.gz: $(WORK)/input/gpad/%-uniprot.gpad.gz $(WORK)/input/gpi/%-un
 	  --gpi "$(word 2,$^)" --gpi-source "$(GO_RELEASE_URL)/annotations/gpi/$*-uniprot.gpi.gz" \
 	  --groups "$(WORK)/input/metadata/groups.ttl" --groups-source "$(GO_RELEASE_URL)/metadata/groups.ttl" \
 	  --db-xrefs "$(WORK)/input/metadata/db-xrefs.json" --db-xrefs-source "$(GO_RELEASE_URL)/metadata/db-xrefs.json" \
-	  --eco "$(WORK)/input/eco.obo" --eco-source "$(ECO_URL)" \
+	  --eco "$(WORK)/input/eco.owl" --eco-source "$(ECO_URL)" \
+	  --go-release "$(RELEASE)" --go-release-doi "$(WORK)/input/metadata/release-archive-doi.json" \
+	  --dataset-iri "$(DATASET_IRI)" --converter-version "$(CONVERTER_VERSION)" \
 	  --report "$(WORK)/rdf/$*.report.tsv" --output "$@"
 
 $(WORK)/rdf/vocab.ttl: vocab/goann.ttl
@@ -127,11 +136,33 @@ report: $(SPECIES_LIST)
 	@cat "$(WORK)/report.tsv"
 
 # kgf runs hdtc for every external step; the bundle lands in $(BUNDLE_ROOT)/$(DATASET)/$(RELEASE).
+# The version label is the GO release date. kgf refuses to rewrite a version
+# directory, so every build is made under $(BUNDLE_ROOT)/.staging and moved into
+# place; replacing an existing bundle of the release happens only when REPLACE=1
+# says to. The old bundle is moved aside, never deleted: remove
+# $(BUNDLE_ROOT)/.replaced/$(DATASET)/RELEASE-* once the new one is out.
+# previous_version names the newest bundle of an earlier release.
+BUNDLE_DIR := $(BUNDLE_ROOT)/$(DATASET)
+STAGING_DIR := $(BUNDLE_ROOT)/.staging/$(DATASET)
+REPLACED_DIR := $(BUNDLE_ROOT)/.replaced/$(DATASET)
+PREVIOUS_VERSION ?= $(shell ls -1 "$(BUNDLE_DIR)" 2>/dev/null | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$$' \
+  | awk '$$0 < "$(RELEASE)"' | sort | tail -1)
+STAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
+
 bundle: report
+	@if [ -e "$(BUNDLE_DIR)/$(RELEASE)" ] && [ "$(REPLACE)" != 1 ]; then \
+	  echo "$(BUNDLE_DIR)/$(RELEASE) exists; pass REPLACE=1 to build a replacement" >&2; exit 1; fi
+	@if [ -e "$(STAGING_DIR)/$(RELEASE)" ]; then \
+	  echo "$(STAGING_DIR)/$(RELEASE) is left from an earlier build; remove it first" >&2; exit 1; fi
+	mkdir -p "$(STAGING_DIR)" "$(BUNDLE_DIR)"
 	$(KGF) build --config "$(KGF_CONFIG)" --hdtc "$(HDTC)" --version "$(RELEASE)" \
-	  --out "$(BUNDLE_ROOT)/$(DATASET)/$(RELEASE)" \
+	  $(if $(PREVIOUS_VERSION),--previous-version "$(PREVIOUS_VERSION)") \
+	  --out "$(STAGING_DIR)/$(RELEASE)" \
 	  --source-url "$(GO_RELEASE_URL)/annotations/" \
 	  $$(sed 's|.*|--input $(WORK)/rdf/&.nt.gz|' "$(SPECIES_LIST)") --input "$(WORK)/rdf/vocab.ttl"
+	if [ -e "$(BUNDLE_DIR)/$(RELEASE)" ]; then mkdir -p "$(REPLACED_DIR)" && \
+	  mv "$(BUNDLE_DIR)/$(RELEASE)" "$(REPLACED_DIR)/$(RELEASE)-$(STAMP)"; fi
+	mv "$(STAGING_DIR)/$(RELEASE)" "$(BUNDLE_DIR)/$(RELEASE)"
 
 clean-build:
 	rm -rf .scala-build target

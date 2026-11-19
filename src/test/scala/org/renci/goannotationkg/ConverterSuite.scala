@@ -52,37 +52,35 @@ class ConverterSuite extends FunSuite:
     """[{"database": "EnsemblFungi", "name": "Ensembl Fungi", "generic_urls": ["http://fungi.ensembl.org/"]},
       | {"database": "UniProt", "generic_urls": ["http://example.org/should-not-win"]}]""".stripMargin
 
-  private val ecoObo =
-    """format-version: 1.2
-      |data-version: releases/2026-07-10
-      |
-      |[Term]
-      |id: ECO:0000353
-      |property_value: ECO:9000002 "IPI" xsd:string
-      |
-      |[Term]
-      |id: ECO:0000315
-      |property_value: ECO:9000002 "IMP" xsd:string
-      |
-      |[Term]
-      |id: ECO:0000318
-      |property_value: ECO:9000002 "IBA" xsd:string
-      |
-      |[Term]
-      |id: ECO:0000314
-      |property_value: ECO:9000002 "IDA" xsd:string
-      |
-      |[Term]
-      |id: ECO:0000256
-      |property_value: ECO:9000002 "IEA" xsd:string
-      |
-      |[Term]
-      |id: ECO:0000307
-      |property_value: ECO:9000002 "ND" xsd:string
-      |
-      |[Typedef]
-      |id: used_in
+  // ECO's OWL release, in RDF/XML as published; the axiom annotation mirrors the real file's "Default" marks.
+  private val ecoOwl =
+    """<?xml version="1.0"?>
+      |<rdf:RDF xml:base="http://purl.obolibrary.org/obo/eco.owl"
+      |    xmlns:obo="http://purl.obolibrary.org/obo/"
+      |    xmlns:owl="http://www.w3.org/2002/07/owl#"
+      |    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+      |    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+      |  <owl:Ontology rdf:about="http://purl.obolibrary.org/obo/eco.owl">
+      |    <owl:versionIRI rdf:resource="http://purl.obolibrary.org/obo/eco/releases/2026-07-10/eco.owl"/>
+      |  </owl:Ontology>
+      |  <owl:Class rdf:about="http://purl.obolibrary.org/obo/ECO_0000353"><obo:ECO_9000002>IPI</obo:ECO_9000002></owl:Class>
+      |  <owl:Class rdf:about="http://purl.obolibrary.org/obo/ECO_0000315"><obo:ECO_9000002>IMP</obo:ECO_9000002></owl:Class>
+      |  <owl:Class rdf:about="http://purl.obolibrary.org/obo/ECO_0000318"><obo:ECO_9000002>IBA</obo:ECO_9000002></owl:Class>
+      |  <owl:Class rdf:about="http://purl.obolibrary.org/obo/ECO_0000314"><obo:ECO_9000002>IDA</obo:ECO_9000002></owl:Class>
+      |  <owl:Class rdf:about="http://purl.obolibrary.org/obo/ECO_0000256"><obo:ECO_9000002>IEA</obo:ECO_9000002></owl:Class>
+      |  <owl:Class rdf:about="http://purl.obolibrary.org/obo/ECO_0000307"><obo:ECO_9000002>ND</obo:ECO_9000002></owl:Class>
+      |  <owl:Axiom>
+      |    <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/ECO_0000256"/>
+      |    <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/ECO_9000002"/>
+      |    <owl:annotatedTarget>IEA</owl:annotatedTarget>
+      |    <rdfs:comment>Default</rdfs:comment>
+      |  </owl:Axiom>
+      |</rdf:RDF>
       |""".stripMargin
+
+  private val releaseDoiJson = """{"doi": "10.5281/zenodo.21844811"}"""
+  private val release = "https://release.geneontology.org/2026-08-05"
+  private val datasetIri = "https://purl.org/okn/frink/kg/go-annotations"
 
   private val prefixes = PrefixTable.load(Path.of("prefixes.tsv"))
 
@@ -97,7 +95,13 @@ class ConverterSuite extends FunSuite:
 
   private final case class Run(graph: Graph, stats: Stats, text: String)
 
-  private def run(gpadText: String = gpad, gpiText: Option[String] = Some(gpi), strict: Boolean = false, metadata: Boolean = true): Run =
+  private def run(
+      gpadText: String = gpad,
+      gpiText: Option[String] = Some(gpi),
+      strict: Boolean = false,
+      metadata: Boolean = true,
+      releaseDoi: Boolean = true,
+  ): Run =
     val dir = Files.createTempDirectory("goakg-test")
     def write(name: String, text: String): String =
       val file = dir.resolve(name)
@@ -109,11 +113,17 @@ class ConverterSuite extends FunSuite:
         prefixes = "prefixes.tsv",
         gpad = write("HUMAN-uniprot.gpad", gpadText),
         gpi = gpiText.map(write("HUMAN-uniprot.gpi", _)),
-        gpadSource = Some("https://release.geneontology.org/2026-08-05/annotations/gpad/HUMAN-uniprot.gpad.gz"),
+        gpadSource = Some(s"$release/annotations/gpad/HUMAN-uniprot.gpad.gz"),
+        gpiSource = gpiText.map(_ => s"$release/annotations/gpi/HUMAN-uniprot.gpi.gz"),
         groups = Option.when(metadata)(write("groups.ttl", groupsTtl)),
+        groupsSource = Option.when(metadata)(s"$release/metadata/groups.ttl"),
         dbXrefs = Option.when(metadata)(write("db-xrefs.json", dbXrefsJson)),
-        eco = Option.when(metadata)(write("eco.obo", ecoObo)),
-        ecoSource = Option.when(metadata)("http://purl.obolibrary.org/obo/eco.obo"),
+        eco = Option.when(metadata)(write("eco.owl", ecoOwl)),
+        ecoSource = Option.when(metadata)("http://purl.obolibrary.org/obo/eco.owl"),
+        goRelease = Some("2026-08-05"),
+        goReleaseDoi = Option.when(releaseDoi)(write("release-archive-doi.json", releaseDoiJson)),
+        datasetIri = Some(datasetIri),
+        converterVersion = Some("621b65a"),
         output = output.toString,
         strict = strict,
         quiet = true,
@@ -228,8 +238,11 @@ class ConverterSuite extends FunSuite:
     assertEquals(result.stats("evidence-code.no-mapping"), 1L)
     assertEquals(result.stats("eco.without-go-code"), 1L)
     assert(objects(g, annotation(g, "GOA:11"), Vocab.Rdfs.comment).isEmpty)
-    val eco = u("http://purl.obolibrary.org/obo/eco.obo")
-    assertEquals(objects(g, eco, Vocab.Pav.version), Set(lit("releases/2026-07-10")))
+    // ECO is named by its own owl:versionIRI, not the URL it was downloaded from.
+    val eco = u("http://purl.obolibrary.org/obo/eco/releases/2026-07-10/eco.owl")
+    assertEquals(objects(g, eco, rdf.`type`), Set(goann.SourceFile))
+    assertEquals(objects(g, eco, Vocab.Pav.version), Set(lit("2026-07-10")))
+    assert(g.find(u("http://purl.obolibrary.org/obo/eco.owl"), Node.ANY, Node.ANY).toList.isEmpty)
 
   test("without ECO, the GO codes are counted as dropped"):
     val result = run(metadata = false)
@@ -309,6 +322,39 @@ class ConverterSuite extends FunSuite:
     assertEquals(objects(g, file, Vocab.Dcterms.conformsTo), Set(u(Vocab.GpadGpiSpec)))
     assertEquals(objects(g, file, goann.goVersion), Set(u("http://purl.obolibrary.org/obo/go/releases/2026-07-26/extensions/go-plus.ofn")))
     assertEquals(objects(g, file, Vocab.Dcterms.created).head.getLiteralLexicalForm, "2026-07-28T20:25:00")
+
+  test("identifies the GO release by its archive DOI, with its files as parts"):
+    val g = standard.graph
+    val doi = u("https://doi.org/10.5281/zenodo.21844811")
+    assertEquals(objects(g, doi, rdf.`type`), Set(Vocab.Dcat.Dataset))
+    assertEquals(objects(g, doi, Vocab.Pav.version), Set(lit("2026-08-05")))
+    assertEquals(objects(g, doi, Vocab.Rdfs.label), Set(lit("Gene Ontology release 2026-08-05")))
+    assertEquals(
+      objects(g, doi, Vocab.Dcterms.hasPart),
+      Set(
+        u(s"$release/annotations/gpad/HUMAN-uniprot.gpad.gz"),
+        u(s"$release/annotations/gpi/HUMAN-uniprot.gpi.gz"),
+        u(s"$release/metadata/groups.ttl"),
+      ),
+    )
+
+  test("says what the dataset was derived from and created with"):
+    val g = standard.graph
+    val dataset = u(datasetIri)
+    assertEquals(objects(g, dataset, Vocab.Pav.version), Set(lit("2026-08-05")))
+    assertEquals(
+      objects(g, dataset, Vocab.Prov.wasDerivedFrom),
+      Set(u("https://doi.org/10.5281/zenodo.21844811"), u("http://purl.obolibrary.org/obo/eco/releases/2026-07-10/eco.owl")),
+    )
+    val tool = u(Vocab.ProjectIri)
+    assertEquals(objects(g, dataset, Vocab.Pav.createdWith), Set(tool))
+    assertEquals(objects(g, tool, Vocab.Pav.version), Set(lit("621b65a")))
+
+  test("without a DOI, the release is its snapshot URL"):
+    val g = run(releaseDoi = false).graph
+    val snapshot = u(s"$release/")
+    assertEquals(objects(g, snapshot, Vocab.Pav.version), Set(lit("2026-08-05")))
+    assert(objects(g, u(datasetIri), Vocab.Prov.wasDerivedFrom).contains(snapshot))
 
   test("uses only the goann terms that have no existing equivalent"):
     val used = standard.graph.find().asScala.flatMap(t => Seq(t.getPredicate, t.getObject)).filter(_.isURI)

@@ -28,12 +28,52 @@ converted: 172 species in release 2026-08-05. The 21 `*-mod.gpad.gz` files repea
 same annotations keyed to MOD gene identifiers. MOD gene identifiers still reach the
 graph, as GPI cross-references (`rdfs:seeAlso`).
 
-Three metadata files are read alongside:
+Metadata files are read alongside:
 
 - GO's `groups.ttl` and `db-xrefs.json`, from the same release, for the groups that
   assign annotations;
-- ECO's `eco.obo`, for the GO evidence code of each ECO class. ECO is not part of a
-  GO release, so its `data-version` is recorded in the graph.
+- GO's `release-archive-doi.json`, which names the release's Zenodo archive DOI;
+- ECO's OWL release, `eco.owl`, for the GO evidence code of each ECO class. ECO is not
+  part of a GO release, so its `owl:versionIRI` is recorded in the graph. OBO format is
+  not read: it is not a well-defined format, and ECO publishes an official OWL file.
+
+## Versions and provenance
+
+**The version label is the GO release date** (`2026-08-05`), for the KGF bundle and
+in the graph. If a conversion turns out wrong, the converter is fixed and that
+release rebuilt under the same label: `make bundle REPLACE=1` builds the replacement
+and moves the old bundle aside to `.replaced/`. The Makefile never deletes a bundle.
+The KGF manifest's `previous_version` names the newest bundle of an earlier release.
+
+**In the graph**, a few dozen triples per build say where the data came from:
+
+```turtle
+<https://doi.org/10.5281/zenodo.21844811> a dcat:Dataset ;       # the GO release, by its archive DOI
+    rdfs:label "Gene Ontology release 2026-08-05" ;
+    pav:version "2026-08-05" ;
+    dcterms:hasPart <https://release.geneontology.org/2026-08-05/annotations/gpad/HUMAN-uniprot.gpad.gz> ,
+                    <https://release.geneontology.org/2026-08-05/metadata/groups.ttl> , … .
+
+<https://purl.org/okn/frink/kg/go-annotations>                    # this KG
+    pav:version "2026-08-05" ;
+    prov:wasDerivedFrom <https://doi.org/10.5281/zenodo.21844811> ,
+                        <http://purl.obolibrary.org/obo/eco/releases/2026-07-10/eco.owl> ;
+    pav:createdWith <https://w3id.org/go-annotation-kg/> .
+
+<https://w3id.org/go-annotation-kg/> rdfs:label "go-annotation-kg" ;
+    pav:version "621b65a" .                                        # git describe; "-dirty" if uncommitted
+```
+
+Each GPAD, GPI and metadata file is a `goann:SourceFile` with its header details. The
+GO version a GPAD or GPI file was checked against is recorded per file
+(`goann:goVersion`), because GOA generates species files on different days, against
+different GO versions. When GO gives no DOI file, the release is named by its snapshot
+URL, `https://release.geneontology.org/2026-08-05/`.
+
+**In the KGF manifest**, alongside: the content digest, KGF's identity for a version's
+bytes; the SHA-256 of each input file; the `kgf` and `hdtc` versions; the source URL;
+and `previous_version`. Facts about the data's origin are in the graph, so they
+survive exports and copies; facts about the build are in the manifest.
 
 ## The shape
 
@@ -395,7 +435,7 @@ triples, because "no IEA" is the most common filter on GO annotations.
 ## Size (release 2026-08-05)
 
 From `make convert-all` and `make report` over all 172 `*-uniprot` pairs. Run with
-`-j8` on a 12-core laptop, the conversion takes about 100 seconds.
+`-j8` on a 12-core laptop, the conversion takes about 110 seconds.
 
 | | |
 |---|---:|
@@ -407,7 +447,7 @@ From `make convert-all` and `make report` over all 172 `*-uniprot` pairs. Run wi
 | gene products described from the GPI | 1,808,506 |
 | annotated objects missing from the GPI | 107,523 |
 | extension classes, interacting taxa included | 173,049 |
-| triples written | 176,453,967 |
+| triples written | 176,456,203 |
 | N-Triples 1.2 output, gzipped | 1.1 GB |
 
 The asserted-triple count equals the number of distinct positive (object, relation,

@@ -47,12 +47,20 @@ make bundle KGF=/path/to/kgf HDTC=/path/to/hdtc
 `RELEASE` defaults to the current release, from
 `https://current.geneontology.org/metadata/release-date.json`. The GPAD and GPI files,
 and GO's `groups.ttl` and `db-xrefs.json`, are read from that release's pinned
-snapshot at `https://release.geneontology.org/RELEASE/`. ECO's `eco.obo` comes from
-`ECO_URL`, the current ECO by default; its first download is kept for the release,
-and its version is recorded in the graph. Everything lands under `data/RELEASE/`
-(`DATA_ROOT` to move it). Pass `RELEASE=YYYY-MM-DD` to rebuild an older one. Downloads and conversions are per species and atomic, so an
-interrupted run picks up where it stopped. Try one species first with
-`make convert SPECIES=HUMAN`.
+snapshot at `https://release.geneontology.org/RELEASE/`, with the release's archive
+DOI. ECO's OWL release, `eco.owl`, comes from `ECO_URL`, the current ECO by default;
+its first download is kept for the release, and its version IRI is recorded in the
+graph. Everything lands under `data/RELEASE/` (`DATA_ROOT` to move it). Pass
+`RELEASE=YYYY-MM-DD` to rebuild an older one. Downloads and conversions are per species
+and atomic, so an interrupted run picks up where it stopped. Try one species first
+with `make convert SPECIES=HUMAN`.
+
+The bundle's version label is the GO release date. To replace a release's bundle after
+fixing the converter, run `make bundle REPLACE=1`: the new bundle is built under
+`BUNDLE_ROOT/.staging/` and moved into place, and the old one is moved to
+`BUNDLE_ROOT/.replaced/`, for you to delete when the new one is out. The manifest's
+`previous_version` is set from the newest bundle of an earlier release.
+[`docs/model.md`](docs/model.md) describes the provenance the graph records.
 
 `make report` sums every species' counters into `data/RELEASE/report.tsv`. Read its
 `dropped.*` lines after each release: a prefix GO starts using that

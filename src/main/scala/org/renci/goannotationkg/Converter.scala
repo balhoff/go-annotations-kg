@@ -15,6 +15,22 @@ final case class Source(stream: InputStream, iri: Option[String])
 /** A metadata file the conversion used, for its provenance node. */
 final case class MetadataSource(iri: String, version: Option[String] = None)
 
+/** What the dataset as a whole came from, written beside the data.
+  *
+  * The GO release is identified by its Zenodo archive DOI where GO gives one, and has
+  * its GPAD, GPI and metadata files as parts. The dataset (the KG's own IRI) was
+  * derived from that release and from ECO, and created with this converter.
+  */
+final case class Provenance(
+    datasetIri: Option[String] = None,
+    /** The GO release date, which is also the KG's version label. */
+    releaseVersion: Option[String] = None,
+    releaseIri: Option[String] = None,
+    releaseParts: Seq[String] = Nil,
+    derivedFrom: Seq[String] = Nil,
+    converterVersion: Option[String] = None,
+)
+
 /** Converts one species' GPAD file, and optionally its GPI file, to RDF 1.2.
   *
   * Each GPAD line becomes one annotation node (a blank node) that reifies the
@@ -46,6 +62,7 @@ final class Converter(
       gpad: Source,
       gpi: Option[Source],
       metadataSources: Seq[MetadataSource] = Nil,
+      provenance: Provenance = Provenance(),
   ): Unit =
     if !speciesCode.matches(species) then
       throw ConversionException(s"species code must be alphanumeric, got '$species'")
@@ -81,6 +98,7 @@ final class Converter(
     groups()
     evidenceCodes()
     metadataSources.foreach(metadataSource)
+    datasetProvenance(provenance)
 
   // ---- annotations ---------------------------------------------------------
 
@@ -321,6 +339,28 @@ final class Converter(
           case Expansion.Iri(iri) => emit(file, GoAnn.goVersion, uri(iri))
           case _ => emit(file, GoAnn.goVersion, literal(value))
       case _ => ()
+    }
+
+  private def datasetProvenance(p: Provenance): Unit =
+    p.releaseIri.foreach { iri =>
+      val release = sourceNode(iri)
+      emit(release, Rdf.`type`, Dcat.Dataset)
+      p.releaseVersion.foreach { version =>
+        emit(release, Rdfs.label, literal(s"Gene Ontology release $version"))
+        emit(release, Pav.version, literal(version))
+      }
+      p.releaseParts.foreach(part => emit(release, Dcterms.hasPart, sourceNode(part)))
+    }
+    p.datasetIri.foreach { iri =>
+      val dataset = sourceNode(iri)
+      p.releaseVersion.foreach(version => emit(dataset, Pav.version, literal(version)))
+      p.derivedFrom.foreach(source => emit(dataset, Prov.wasDerivedFrom, sourceNode(source)))
+      p.converterVersion.foreach { version =>
+        val tool = uri(ProjectIri)
+        emit(dataset, Pav.createdWith, tool)
+        emit(tool, Rdfs.label, literal("go-annotation-kg"))
+        emit(tool, Pav.version, literal(version))
+      }
     }
 
   private def metadataSource(source: MetadataSource): Unit =

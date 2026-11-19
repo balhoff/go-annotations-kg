@@ -2,14 +2,18 @@ package org.renci.goannotationkg
 
 import org.apache.jena.atlas.json.{JSON, JsonArray, JsonObject}
 import org.apache.jena.graph.{Node, NodeFactory}
-import org.apache.jena.riot.RDFDataMgr
+import org.apache.jena.riot.{Lang, RDFDataMgr, RDFLanguages}
 
-import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters.*
 
 /** A GO group, the value of GPAD's Assigned_By. name is the longer name, when it differs. */
 final case class Group(iri: String, shorthand: String, name: Option[String])
+
+/** An ECO release: its GO evidence codes, and the version its owl:versionIRI names. */
+final case class EcoRelease(codes: Map[String, Seq[String]], versionIri: Option[String]):
+  /** "2026-07-10" from ".../eco/releases/2026-07-10/eco.owl". */
+  def version: Option[String] = versionIri.collect { case s"$_/releases/$v/$_" => v }
 
 /** What GPAD values are resolved against: GO's groups, and ECO's GO evidence codes. */
 final case class ReleaseMetadata(
@@ -17,10 +21,8 @@ final case class ReleaseMetadata(
     groups: Map[String, Group] = Map.empty,
     /** ECO CURIE to the GO evidence codes ECO gives it with ECO:9000002. */
     ecoCodes: Map[String, Seq[String]] = Map.empty,
-    /** ECO's data-version, when ECO was loaded. */
-    ecoVersion: Option[String] = None,
 ):
-  def hasEco: Boolean = ecoVersion.isDefined || ecoCodes.nonEmpty
+  def hasEco: Boolean = ecoCodes.nonEmpty
 
 object ReleaseMetadata:
   private val shorthand = NodeFactory.createURI("http://www.geneontology.org/formats/oboInOwl#shorthand")
@@ -65,30 +67,37 @@ object ReleaseMetadata:
 
     fromDbXrefs ++ fromGroups
 
-  /** ECO:9000002 ("has GO evidence code") values from eco.obo, and its data-version. */
-  def loadEco(ecoObo: Path): (Map[String, Seq[String]], Option[String]) =
-    val codes = Map.newBuilder[String, Seq[String]]
-    var version: Option[String] = None
-    var inTerm = false
-    var id = ""
-    var current = Vector.empty[String]
-    def flush(): Unit =
-      if inTerm && id.nonEmpty && current.nonEmpty then codes += id -> current
-      id = ""
-      current = Vector.empty
-    val code = """property_value: ECO:9000002 "([^"]+)".*""".r
-    Files.readAllLines(ecoObo, UTF_8).asScala.foreach { line =>
-      if line.startsWith("[") then
-        flush()
-        inTerm = line.trim == "[Term]"
-      else if line.startsWith("data-version:") && version.isEmpty && !inTerm && id.isEmpty then
-        version = Some(line.stripPrefix("data-version:").trim)
-      else if inTerm && line.startsWith("id: ") then id = line.stripPrefix("id: ").trim
-      else if inTerm then line match
-        case code(value) => current = current :+ value
-        case _ => ()
-    }
-    flush()
-    val result = codes.result()
-    if result.isEmpty then throw ConversionException(s"'$ecoObo' has no ECO:9000002 values; is it eco.obo?")
-    (result, version)
+  private val hasGoEvidenceCode = NodeFactory.createURI("http://purl.obolibrary.org/obo/ECO_9000002")
+  private val versionIri = NodeFactory.createURI("http://www.w3.org/2002/07/owl#versionIRI")
+  private val owlOntology = NodeFactory.createURI("http://www.w3.org/2002/07/owl#Ontology")
+  private val ecoPrefix = "http://purl.obolibrary.org/obo/ECO_"
+
+  /** ECO:9000002 ("has GO evidence code") assertions and the version IRI, from ECO's OWL release.
+    * The syntax comes from the file name (eco.owl is RDF/XML); OBO format is not read.
+    */
+  def loadEco(path: Path): EcoRelease =
+    val lang = Option(RDFLanguages.filenameToLang(path.toString)).getOrElse(Lang.RDFXML)
+    val graph =
+      try RDFDataMgr.loadGraph(path.toString, lang)
+      catch case error: Exception => throw ConversionException(s"could not read ECO '$path': ${error.getMessage}", error)
+    val codes = graph.find(Node.ANY, hasGoEvidenceCode, Node.ANY).asScala.toVector
+      .filter(t => t.getSubject.isURI && t.getSubject.getURI.startsWith(ecoPrefix) && t.getObject.isLiteral)
+      .groupMap(t => "ECO:" + t.getSubject.getURI.stripPrefix(ecoPrefix))(_.getObject.getLiteralLexicalForm)
+      .view.mapValues(_.distinct.sorted).toMap
+    if codes.isEmpty then throw ConversionException(s"'$path' has no ECO:9000002 assertions; is it ECO's eco.owl?")
+    val version = graph.find(Node.ANY, Vocab.Rdf.`type`, owlOntology).asScala.toVector
+      .flatMap(t => graph.find(t.getSubject, versionIri, Node.ANY).asScala.map(_.getObject))
+      .collectFirst { case n if n.isURI => n.getURI }
+    EcoRelease(codes, version)
+
+  /** The DOI GO's release-archive-doi.json gives for the release's Zenodo archive, as a doi.org IRI. */
+  def loadReleaseDoi(path: Path): String =
+    val json =
+      try JSON.parseAny(Files.newInputStream(path))
+      catch case error: Exception => throw ConversionException(s"could not read '$path': ${error.getMessage}", error)
+    val doi = json match
+      case obj: JsonObject if obj.hasKey("doi") && obj.get("doi").isString => obj.get("doi").getAsString.value().trim
+      case _ => throw ConversionException(s"'$path' has no \"doi\" string")
+    PrefixTable.checkIri("https://doi.org/" + doi) match
+      case Expansion.Iri(iri) => iri
+      case _ => throw ConversionException(s"'$path' gives an unusable DOI: '$doi'")

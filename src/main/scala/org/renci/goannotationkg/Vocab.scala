@@ -7,6 +7,9 @@ object Vocab:
   /** The KG's own vocabulary, for what no existing vocabulary covers. Definitions are in vocab/goann.ttl. */
   val GoAnnNamespace = "https://w3id.org/go-annotation-kg/vocab/"
 
+  /** This project, as the tool a dataset was created with (pav:createdWith). */
+  val ProjectIri = "https://w3id.org/go-annotation-kg/"
+
   /** The GPAD/GPI 2.0 specification, which every accepted 2.x file conforms to. */
   val GpadGpiSpec = "https://github.com/geneontology/go-annotation/blob/master/specs/gpad-gpi-2-0.md"
 
@@ -44,12 +47,17 @@ object Vocab:
     val contributor: Node = dcterms("contributor")
     val creator: Node = dcterms("creator")
     val conformsTo: Node = dcterms("conformsTo")
+    val hasPart: Node = dcterms("hasPart")
 
   object Pav:
     val providedBy: Node = pav("providedBy")
     val curatedBy: Node = pav("curatedBy")
     val curatedOn: Node = pav("curatedOn")
     val version: Node = pav("version")
+    val createdWith: Node = pav("createdWith")
+
+  object Dcat:
+    val Dataset: Node = iri("http://www.w3.org/ns/dcat#Dataset")
 
   object Prov:
     val wasDerivedFrom: Node = iri("http://www.w3.org/ns/prov#wasDerivedFrom")

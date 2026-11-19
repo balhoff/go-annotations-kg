@@ -21,6 +21,10 @@ final case class Config(
     dbXrefsSource: Option[String] = None,
     eco: Option[String] = None,
     ecoSource: Option[String] = None,
+    goRelease: Option[String] = None,
+    goReleaseDoi: Option[String] = None,
+    datasetIri: Option[String] = None,
+    converterVersion: Option[String] = None,
     output: String = "-",
     report: Option[String] = None,
     strict: Boolean = false,
@@ -79,13 +83,29 @@ object Main:
         .action((value, config) => config.copy(dbXrefsSource = Some(value)))
         .text("IRI of the published db-xrefs.json, for its provenance node"),
       opt[String]("eco")
-        .valueName("<eco.obo>")
+        .valueName("<eco.owl>")
         .action((value, config) => config.copy(eco = Some(value)))
-        .text("ECO in OBO format, for the GO evidence code of each ECO class (ECO:9000002)"),
+        .text("ECO's OWL release, for the GO evidence code of each ECO class (ECO:9000002)"),
       opt[String]("eco-source")
         .valueName("<IRI>")
         .action((value, config) => config.copy(ecoSource = Some(value)))
-        .text("IRI of the ECO file, for its provenance node"),
+        .text("IRI for the ECO file's provenance node when it has no owl:versionIRI"),
+      opt[String]("go-release")
+        .valueName("<YYYY-MM-DD>")
+        .action((value, config) => config.copy(goRelease = Some(value)))
+        .text("the GO release date, which is also the dataset's version"),
+      opt[String]("go-release-doi")
+        .valueName("<release-archive-doi.json>")
+        .action((value, config) => config.copy(goReleaseDoi = Some(value)))
+        .text("GO's file naming the release's Zenodo archive DOI, which identifies the release"),
+      opt[String]("dataset-iri")
+        .valueName("<IRI>")
+        .action((value, config) => config.copy(datasetIri = Some(value)))
+        .text("the KG's dataset IRI, for its provenance node"),
+      opt[String]("converter-version")
+        .valueName("<VERSION>")
+        .action((value, config) => config.copy(converterVersion = Some(value)))
+        .text("the converter's version, such as its git commit, recorded with pav:createdWith"),
       opt[String]('o', "output")
         .valueName("<output.nt[.gz]>")
         .action((value, config) => config.copy(output = value))
@@ -119,17 +139,31 @@ object Main:
   def run(config: Config): Stats =
     val prefixes = PrefixTable.load(Path.of(config.prefixes))
     val species = config.species.getOrElse(Path.of(config.gpad).getFileName.toString.takeWhile(_ != '-'))
-    val inputs = Seq(config.gpad) ++ config.gpi ++ config.groups ++ config.dbXrefs ++ config.eco ++ Seq(config.prefixes)
+    val inputs = Seq(config.gpad) ++ config.gpi ++ config.groups ++ config.dbXrefs ++ config.eco ++ config.goReleaseDoi ++ Seq(config.prefixes)
     if config.output != "-" && inputs.exists(i => Path.of(i).toAbsolutePath.normalize() == Path.of(config.output).toAbsolutePath.normalize()) then
       throw ConversionException(s"output '${config.output}' must not be an input file")
 
     val groups = ReleaseMetadata.loadGroups(config.groups.map(Path.of(_)), config.dbXrefs.map(Path.of(_)))
-    val (ecoCodes, ecoVersion) = config.eco.map(e => ReleaseMetadata.loadEco(Path.of(e))).getOrElse((Map.empty, None))
-    val metadata = ReleaseMetadata(groups, ecoCodes, ecoVersion)
+    val eco = config.eco.map(e => ReleaseMetadata.loadEco(Path.of(e)))
+    val metadata = ReleaseMetadata(groups, eco.map(_.codes).getOrElse(Map.empty))
+    // ECO is named by the version IRI in the file itself, when it has one.
+    val ecoSource = eco.flatMap(e => e.versionIri.orElse(config.ecoSource).map(MetadataSource(_, e.version)))
     val metadataSources =
       config.groupsSource.map(MetadataSource(_)).toSeq ++
         config.dbXrefsSource.map(MetadataSource(_)) ++
-        config.ecoSource.map(MetadataSource(_, ecoVersion))
+        ecoSource
+
+    // The release is its Zenodo archive DOI where GO gives one, else its snapshot URL.
+    val releaseIri = config.goReleaseDoi.map(p => ReleaseMetadata.loadReleaseDoi(Path.of(p)))
+      .orElse(config.goRelease.map(r => s"https://release.geneontology.org/$r/"))
+    val provenance = Provenance(
+      datasetIri = config.datasetIri,
+      releaseVersion = config.goRelease,
+      releaseIri = releaseIri,
+      releaseParts = Seq(config.gpadSource, config.gpiSource, config.groupsSource, config.dbXrefsSource).flatten,
+      derivedFrom = releaseIri.toSeq ++ ecoSource.map(_.iri),
+      converterVersion = config.converterVersion,
+    )
 
     val output = Io.openOutput(config.output)
     val gpad = Io.openInput(config.gpad)
@@ -143,6 +177,7 @@ object Main:
         Source(gpad.stream, config.gpadSource),
         gpi.map(handle => Source(handle.stream, config.gpiSource)),
         metadataSources,
+        provenance,
       )
       rdf.finish()
       val stats = converter.stats

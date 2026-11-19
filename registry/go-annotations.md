@@ -25,6 +25,7 @@ frink-options:
         prov: "http://www.w3.org/ns/prov#"
         oboInOwl: "http://www.geneontology.org/formats/oboInOwl#"
         up: "http://purl.uniprot.org/core/"
+        dcat: "http://www.w3.org/ns/dcat#"
       authoritative_namespaces:
         - goann
       roles:
