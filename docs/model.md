@@ -348,9 +348,10 @@ The 62 unlabelled terms are listed in `labels.unlabelled.tsv`:
 
 - **Retired ids.** Where the ontology records a merge, the list names the current
   term.
-  - 17 GO ids, all extension targets, which GOA's checks evidently miss. 16 of them
-    are merged into a current term: GO:0016021 (*integral component of membrane*)
-    into GO:0016020, for example.
+  - 17 GO ids, all merged into current terms (GO:0016021 *integral component of
+    membrane* into GO:0016020, for example). 16 are extension targets, on 997 lines,
+    all assigned by IntAct. GO:0016021 and GO:0005913 also occur in with/from, on 7
+    ZFIN and MGI lines. GOA's checks evidently miss both columns.
   - 9 NCBITaxon ids, all interacting taxa (106 lines). NCBITaxon:10633, for one, is
     merged into NCBITaxon:1891767.
   - A few CHEBI, CL, UBERON, WBbt and WBls extension targets.
